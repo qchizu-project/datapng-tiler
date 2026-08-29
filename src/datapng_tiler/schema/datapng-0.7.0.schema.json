@@ -1,0 +1,201 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://example.org/tilejson-datapng-extension/0.7.0/schema.json",
+  "title": "TileJSON DataPNG Extension",
+  "description": "データPNG仕様に基づくグリッドPNGタイルセットメタデータの TileJSON 拡張",
+  "type": "object",
+  "required": [
+    "type"
+  ],
+  "properties": {
+    "type": {
+      "type": "string",
+      "enum": [
+        "numerical",
+        "palette"
+      ],
+      "description": "データPNGの種別"
+    },
+    "specialEncoding": {
+      "oneOf": [
+        {
+          "const": false
+        },
+        {
+          "type": "string"
+        }
+      ],
+      "default": false,
+      "description": "正式なデータPNG以外の特殊なエンコード方式。false（既定）は正式なデータPNGエンコード（符号付き24ビット整数）。互換値として \"mapbox\"（Mapbox Terrain-RGB）, \"terrarium\"（Mapzen/Terrarium）等を許容する拡張可能なリスト"
+    },
+    "factor": {
+      "type": "number",
+      "description": "数値PNG用の変換係数 f"
+    },
+    "offset": {
+      "type": "number",
+      "description": "数値PNG用のオフセット o"
+    },
+    "unit": {
+      "type": "string",
+      "description": "変換後の値の単位"
+    },
+    "invalidColor": {
+      "type": "array",
+      "items": {
+        "type": "integer",
+        "minimum": 0,
+        "maximum": 255
+      },
+      "minItems": 3,
+      "maxItems": 3,
+      "description": "無効色 [r, g, b]。アルファチャンネルを持たないタイル専用"
+    },
+    "dataRange": {
+      "type": "object",
+      "properties": {
+        "min": {
+          "type": "number",
+          "description": "デコード後の最小期待値"
+        },
+        "max": {
+          "type": "number",
+          "description": "デコード後の最大期待値"
+        }
+      },
+      "description": "デコード後の値の期待範囲"
+    },
+    "precision": {
+      "type": "number",
+      "exclusiveMinimum": 0,
+      "description": "元データの有効な最小単位"
+    },
+    "legend": {
+      "oneOf": [
+        {
+          "type": "string",
+          "format": "uri",
+          "description": "外部凡例JSON URL"
+        },
+        {
+          "type": "object",
+          "required": [
+            "items"
+          ],
+          "properties": {
+            "title": {
+              "type": "string"
+            },
+            "items": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "required": [
+                  "r",
+                  "g",
+                  "b",
+                  "title"
+                ],
+                "properties": {
+                  "r": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "maximum": 255
+                  },
+                  "g": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "maximum": 255
+                  },
+                  "b": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "maximum": 255
+                  },
+                  "title": {
+                    "type": "string"
+                  },
+                  "description": {
+                    "type": "string"
+                  }
+                },
+                "additionalProperties": true
+              }
+            }
+          },
+          "additionalProperties": true
+        }
+      ],
+      "description": "パレットPNG凡例情報（インラインまたはURL）"
+    },
+    "support": {
+      "type": "object",
+      "required": [
+        "type"
+      ],
+      "properties": {
+        "type": {
+          "type": "string",
+          "enum": [
+            "point",
+            "block"
+          ]
+        },
+        "anchor": {
+          "type": "string",
+          "enum": [
+            "northwest",
+            "center"
+          ]
+        }
+      },
+      "additionalProperties": false,
+      "description": "格納値の support（point/block）。anchor は type が point の場合のみ有効"
+    }
+  },
+  "allOf": [
+    {
+      "if": {
+        "required": [
+          "type"
+        ],
+        "properties": {
+          "type": {
+            "const": "numerical"
+          }
+        }
+      },
+      "then": {
+        "properties": {
+          "specialEncoding": {
+            "default": false
+          },
+          "factor": {
+            "default": 1
+          },
+          "offset": {
+            "default": 0
+          }
+        }
+      }
+    },
+    {
+      "if": {
+        "required": [
+          "type"
+        ],
+        "properties": {
+          "type": {
+            "const": "palette"
+          }
+        }
+      },
+      "then": {
+        "required": [
+          "type",
+          "legend"
+        ]
+      }
+    }
+  ]
+}
