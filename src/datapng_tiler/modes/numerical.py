@@ -205,9 +205,9 @@ class NumericalMode(TileMode):
         rgb, valid = self.encoding.encode(data.values, valid=data.valid)
         if not valid.any():
             return None
-        return self._compose(rgb, valid)
+        return self.compose(rgb, valid)
 
-    def _compose(self, rgb: np.ndarray, valid: np.ndarray) -> Image.Image:
+    def compose(self, rgb: np.ndarray, valid: np.ndarray) -> Image.Image:
         """RGB と有効マスクから、無効値の表し方に応じた画像を作る。"""
         if self.invalid_color is None:
             if valid.all():
@@ -261,7 +261,7 @@ class NumericalMode(TileMode):
 
         if not valid.any():
             return None
-        return self._compose(self.encoding.raw_to_rgb(raw), valid)
+        return self.compose(self.encoding.raw_to_rgb(raw), valid)
 
     # --- TileJSON -------------------------------------------------------------------
 

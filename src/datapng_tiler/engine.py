@@ -51,14 +51,14 @@ _BATCHES_PER_WORKER = 8
 _WORKER_GDAL_CACHEMAX_MB = "256"
 
 
-def _batch_size(count: int, processes: int) -> int:
+def batch_size(count: int, processes: int) -> int:
     """タイル群をワーカへ均等に配るバッチサイズを決める。"""
     if processes <= 1 or count <= 0:
         return _MAX_BATCH
     return max(1, min(_MAX_BATCH, math.ceil(count / (processes * _BATCHES_PER_WORKER))))
 
 
-def _init_worker() -> None:
+def init_worker() -> None:
     """ワーカプロセスの共通初期化（GDAL のキャッシュ上限とログ抑制）。
 
     GDAL は最初にデータセットを開いたときに `GDAL_CACHEMAX` を読むため、
@@ -80,7 +80,7 @@ _base_overwrite: bool = False
 def _init_base_worker(src_path: str, zoom: int, mode: TileMode, overwrite: bool) -> None:
     """ベースタイル用ワーカの初期化。状態はすべて引数で受け取る（spawn 対応）。"""
     global _base_mode, _base_src, _base_zoom, _base_overwrite
-    _init_worker()
+    init_worker()
     _base_mode, _base_src, _base_zoom, _base_overwrite = mode, src_path, zoom, overwrite
 
 
@@ -120,7 +120,7 @@ def generate_base_tiles(
         _init_base_worker(str(src_path), zoom, mode, overwrite)
         return _render_base_batch(str(output_dir), tiles)
 
-    size = _batch_size(len(tiles), processes)
+    size = batch_size(len(tiles), processes)
     batches = [tiles[i : i + size] for i in range(0, len(tiles), size)]
     written = 0
     with ProcessPoolExecutor(
@@ -180,7 +180,7 @@ def generate_overview_tiles(
     zooms = range(max_zoom - 1, min_zoom - 1, -1)
 
     if processes <= 1:
-        _init_worker()
+        init_worker()
         for zoom in zooms:
             parents = _parents_for(output_dir, zoom, mode)
             if not parents:
@@ -190,13 +190,13 @@ def generate_overview_tiles(
         return written
 
     # プールはズームをまたいで 1 つだけ作り、起動コストを払い直さない。
-    with ProcessPoolExecutor(max_workers=processes, initializer=_init_worker) as executor:
+    with ProcessPoolExecutor(max_workers=processes, initializer=init_worker) as executor:
         for zoom in zooms:
             parents = _parents_for(output_dir, zoom, mode)
             if not parents:
                 continue
             logger.info("オーバービュー z%d: %d 枚", zoom, len(parents))
-            size = _batch_size(len(parents), processes)
+            size = batch_size(len(parents), processes)
             batches = [parents[i : i + size] for i in range(0, len(parents), size)]
             futures = [
                 executor.submit(
