@@ -245,7 +245,10 @@ class NumericalEncoding:
         else:
             valid = np.asarray(valid, dtype=bool)
         if np.issubdtype(values.dtype, np.floating):
-            valid = valid & ~np.isnan(values)
+            # NaN も ±inf も無効値として扱う。inf は「大きすぎる値」ではなく
+            # そもそも表現できない値なので、on_overflow の対象にはしない
+            # （丸めた結果を整数へ変換すると未定義の値になる）。
+            valid = valid & np.isfinite(values)
 
         # 無効画素は 0 に均してから変換する。NaN を丸めると未定義の整数になるうえ、
         # 範囲外の値が紛れていても無効画素は検査対象から外したいため。

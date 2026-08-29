@@ -187,7 +187,7 @@ class NumericalMode(TileMode):
             valid = valid & (coverage > 0)
 
         if np.issubdtype(values.dtype, np.floating):
-            valid = valid & ~np.isnan(values)
+            valid = valid & np.isfinite(values)
 
         if window.read_w != self.tile_size or window.read_h != self.tile_size:
             full_values = np.zeros((self.tile_size, self.tile_size), dtype=values.dtype)

@@ -268,3 +268,12 @@ def test_raw_to_rgba_は無効画素を完全透明にする():
     # 透明画素の RGB は意味を持たないので 0 に潰す
     assert tuple(rgba[0, 1, :3]) == (0, 0, 0)
     assert spec_decode_datapng(rgba[..., :3])[0, 0] == 1234
+
+
+@pytest.mark.parametrize("bad", [math.inf, -math.inf])
+def test_無限大は無効画素として扱われる(bad):
+    """inf は「大きすぎる値」ではなく表現できない値。丸めて整数化すると未定義になる。"""
+    enc = NumericalEncoding(factor=1.0)
+    rgb, valid = enc.encode(np.array([[1.0, bad]]))
+    assert valid.tolist() == [[True, False]]
+    assert rgb[0, 1].tolist() == [0, 0, 0]
