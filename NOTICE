@@ -1,0 +1,51 @@
+datapng-tiler
+Copyright (c) 2026 qchizu
+
+本ソフトウェアは MIT License で配布されます（LICENSE を参照）。
+
+
+## 準拠する仕様
+
+本ソフトウェアは以下の仕様に準拠して実装されています。いずれも本ソフトウェアの
+著作物ではありません。
+
+- TileJSON DataPNG Extension（qchizu-project, CC0 1.0 Universal）
+  https://github.com/qchizu-project/tilejson-datapng-extension
+
+  `src/datapng_tiler/schema/datapng-0.7.0.schema.json` は、上記仕様が公開する
+  JSON Schema をそのまま同梱したものです。CC0 1.0 Universal（パブリックドメイン
+  献呈）で公開されているため、再配布にクレジット表示は不要ですが、出典を明示する
+  ために記載します。
+
+- TileJSON 3.0.0（Mapbox, CC-BY 3.0）
+  https://github.com/mapbox/tilejson-spec/tree/master/3.0.0
+
+- データPNG／グリッドPNGタイル仕様 v0.1（産業技術総合研究所 地質調査総合センター）
+  https://gsj-seamless.jp/labs/datapng/
+
+- Mapbox Terrain-RGB / Mapzen Terrarium（`specialEncoding` の互換復号式）
+  いずれも公開されている復号式のみを実装しており、コードの流用はありません。
+
+
+## 設計上の参照
+
+タイル生成の設計（EPSG:3857 への再投影パラメータ算出、ベースタイル → オーバー
+ビューの構成、プロセス並列とレジューム、数値の 24 ビット整数エンコード）は、
+同一著作権者が開発した非公開ツール `qchizu-tools` の運用知見を踏まえています。
+コードは本リポジトリのために書き下ろしたものです。
+
+
+## 依存ライブラリ
+
+実行時の依存はいずれも寛容型ライセンスであり、MIT License と両立します。
+
+| パッケージ | ライセンス |
+|-----------|-----------|
+| rasterio  | BSD-3-Clause（同梱される GDAL は MIT/X 系、PROJ は MIT） |
+| numpy     | BSD-3-Clause |
+| Pillow    | MIT-CMU (HPND) |
+| jsonschema | MIT |
+| PyYAML    | MIT |
+
+プレビュー HTML は Leaflet（BSD-2-Clause）を CDN から読み込みます。Leaflet の
+コードは本リポジトリに同梱していません。
