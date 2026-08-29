@@ -228,3 +228,43 @@ def test_推奨_factor_はデータ範囲が収まる最小の桁を返す():
     assert suggest_factor(-500.0, 9000.0) == pytest.approx(0.01)
     # 極端に大きい範囲でも溢れない桁まで上げる
     assert suggest_factor(0.0, 1e12) == pytest.approx(1e6)
+
+
+def test_入力の_dtype_で結果が変わらない():
+    """float32 の配列でも量子化は float64 で行う（NumPy の弱い型付けへの対策）。
+
+    素直に `values / factor` と書くと、float32 の配列 + Python の float は float32 の
+    まま計算される。factor が小さいと仮数が足りず、丸めが 1 整数ぶんずれて
+    「同じデータなのに入力の dtype で生成タイルが変わる」ことになる。
+    """
+    enc = NumericalEncoding(factor=0.001)
+    # float32 で表せる値だけを使い、float64 へは無損失に広げる
+    # （linspace を後から丸めると入力そのものが変わってしまう）
+    values32 = np.linspace(-8000.0, 8000.0, 4096).astype(np.float32)
+    values64 = values32.astype(np.float64)
+    as32, _ = enc.encode(values32)
+    as64, _ = enc.encode(values64)
+    assert np.array_equal(as32, as64)
+
+
+def test_encode_raw_と_encode_は同じ結果になる():
+    enc = NumericalEncoding(factor=0.01, offset=5.0)
+    values = np.array([[1.0, -2.5], [300.0, 0.0]])
+    valid = np.array([[True, True], [True, False]])
+    raw, raw_valid = enc.encode_raw(values, valid=valid)
+    rgb, rgb_valid = enc.encode(values, valid=valid)
+    assert np.array_equal(enc.raw_to_rgb(raw), rgb)
+    assert np.array_equal(raw_valid, rgb_valid)
+
+
+def test_raw_to_rgba_は無効画素を完全透明にする():
+    enc = NumericalEncoding(factor=1.0)
+    raw = np.array([[1234, -5678]], dtype=np.int64)
+    valid = np.array([[True, False]])
+    rgba = enc.raw_to_rgba(raw, valid)
+    assert rgba.shape == (1, 2, 4)
+    assert rgba[0, 0, 3] == 255
+    assert rgba[0, 1, 3] == 0
+    # 透明画素の RGB は意味を持たないので 0 に潰す
+    assert tuple(rgba[0, 1, :3]) == (0, 0, 0)
+    assert spec_decode_datapng(rgba[..., :3])[0, 0] == 1234
