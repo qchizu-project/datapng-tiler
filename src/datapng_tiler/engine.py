@@ -273,7 +273,7 @@ def tile_raster(
             "Web メルカトルの限界緯度（±85.0511 度）を超える範囲を切り詰めました: %s", target
         )
 
-    z_max = max_zoom if max_zoom is not None else auto_max_zoom(resolution, target, mode.tile_size)
+    z_max = max_zoom if max_zoom is not None else auto_max_zoom(resolution, mode.tile_size)
     z_min = min_zoom if min_zoom is not None else auto_min_zoom(target, z_max)
     if z_min > z_max:
         raise ValueError(f"min_zoom({z_min}) が max_zoom({z_max}) を超えています")

@@ -459,3 +459,54 @@ def test_バージョンを表示できる(capsys):
         run("--version")
     assert excinfo.value.code == 0
     assert capsys.readouterr().out.strip()
+
+
+# --- 引数の取りこぼしを防ぐ ---------------------------------------------------------
+
+
+def test_inspect_の範囲外の画素指定はエラー(tmp_path, ramp_raster, capsys):
+    """添字をそのまま渡すと、範囲外はトレースバック、負値は反対側の値を黙って返す。"""
+    out = tmp_path / "tiles"
+    run(
+        "tile",
+        str(ramp_raster),
+        "-o",
+        str(out),
+        "--factor",
+        "0.001",
+        "--tile-size",
+        "64",
+        "-z",
+        str(ZOOM),
+        "--min-zoom",
+        str(ZOOM),
+        "--no-viewer",
+    )
+    tile = out / str(ZOOM) / str(TX) / f"{TY}.webp"
+    capsys.readouterr()
+
+    assert run("inspect", str(tile), "--pixel", "9999", "0") == 1
+    assert "範囲外" in capsys.readouterr().err
+
+    assert run("inspect", str(tile), "--pixel", "-1", "0") == 1
+    assert "範囲外" in capsys.readouterr().err
+
+
+def test_パレット型で数値型専用の無効値オプションを拒む(tmp_path):
+    """黙って無視すると、指定したつもりの出力と実物が食い違う。"""
+    legend = tmp_path / "legend.yaml"
+    legend.write_text(LEGEND_YAML, encoding="utf-8")
+    src = write_class_raster(tmp_path / "classes.tif", checker_classes())
+
+    with pytest.raises(SystemExit, match="数値型専用"):
+        run(
+            "tile",
+            str(src),
+            "-o",
+            str(tmp_path / "out"),
+            "--type",
+            "palette",
+            "--legend",
+            str(legend),
+            "--no-alpha",
+        )

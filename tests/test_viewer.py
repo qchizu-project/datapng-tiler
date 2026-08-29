@@ -108,3 +108,11 @@ def test_ファイルへ書き出せる(tmp_path):
     path = write_viewer_html(build_viewer_html(TILEJSON), tmp_path / "out" / "index.html")
     assert path.exists()
     assert path.read_text(encoding="utf-8").startswith("<!DOCTYPE html>")
+
+
+def test_凡例の説明文もエスケープする():
+    """legend は外部 URL から取得することがあり、内容は必ずしもページ作者が書いたものではない。"""
+    html = build_viewer_html(TILEJSON)
+    # title と description の両方が escapeHtml を通っている
+    assert "escapeHtml(item.title)" in html
+    assert "escapeHtml(item.description)" in html

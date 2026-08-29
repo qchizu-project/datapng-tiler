@@ -207,8 +207,11 @@ map.on('mousemove', (event) => {
   }
   if (dp.type === 'palette') {
     const item = legendItems.find((i) => i.r === px.r && i.g === px.g && i.b === px.b);
+    // description も必ずエスケープする。legend は外部 URL から取ってくることがあり、
+    // その内容をこのページの作者が書いたとは限らない。
     readout._div.innerHTML = item
-      ? `<b>${escapeHtml(item.title)}</b>` + (item.description ? `<br>${item.description}` : '')
+      ? `<b>${escapeHtml(item.title)}</b>` +
+        (item.description ? `<br>${escapeHtml(item.description)}` : '')
       : `<span class="hint">凡例に無い色 (${px.r}, ${px.g}, ${px.b})</span>`;
     highlightLegend(item || null);
     return;

@@ -180,6 +180,13 @@ def _default_jobs() -> int:
 def _build_mode(args: argparse.Namespace):
     fmt = _tile_format(args)
     if args.type == "palette":
+        if args.no_alpha or args.invalid_color:
+            # パレット型の無効値は透明のみ（仕様 §7: invalidColor は数値型専用）。
+            # 黙って無視すると、指定したつもりの出力と実物が食い違う。
+            raise SystemExit(
+                "エラー: --no-alpha / --invalid-color は数値型専用です"
+                "（パレット型の無効値は透明で表します。仕様 §7）"
+            )
         legend = Legend.load(args.legend)
         return PaletteMode(
             tile_size=args.tile_size,
@@ -364,6 +371,21 @@ def cmd_validate(args: argparse.Namespace) -> int:
 # --- inspect ------------------------------------------------------------------------
 
 
+def _checked_pixel(pixel: list[int], shape: tuple[int, ...]) -> tuple[int, int]:
+    """`--pixel COL ROW` を検証する。
+
+    そのまま添字にすると、範囲外はトレースバック、負値は反対側の画素の値を黙って
+    返してしまう（どちらも「指定した場所の値」ではない）。
+    """
+    col, row = pixel
+    height, width = shape[0], shape[1]
+    if not (0 <= col < width and 0 <= row < height):
+        raise ValueError(
+            f"--pixel {col} {row} はタイルの範囲外です（横 0〜{width - 1}, 縦 0〜{height - 1}）"
+        )
+    return col, row
+
+
 def cmd_inspect(args: argparse.Namespace) -> int:
     doc: dict[str, Any] = read_tilejson(args.tilejson) if args.tilejson else {}
     datapng = doc.get("datapng", {})
@@ -399,7 +421,7 @@ def cmd_inspect(args: argparse.Namespace) -> int:
         print(f"  平均: {good.mean():.6g}{unit}")
 
     if args.pixel:
-        col, row = args.pixel
+        col, row = _checked_pixel(args.pixel, rgb.shape)
         if valid[row, col]:
             print(f"  画素 ({col}, {row}): {values[row, col]:.6g}  RGB={tuple(rgb[row, col])}")
         else:
@@ -423,7 +445,7 @@ def _inspect_palette(
             print(f"    {key}: {count} 画素  {lookup.get(key, '（凡例に無い色）')}")
 
     if args.pixel:
-        col, row = args.pixel
+        col, row = _checked_pixel(args.pixel, rgb.shape)
         key = tuple(int(c) for c in rgb[row, col])
         label = "無効値" if not valid[row, col] else lookup.get(key, "（凡例に無い色）")
         print(f"  画素 ({col}, {row}): {label}  RGB={key}")

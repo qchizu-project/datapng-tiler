@@ -35,9 +35,6 @@ ORIGIN_SHIFT = 2 * math.pi * 6378137 / 2.0
 # Web メルカトルで表現できる限界緯度。約 85.0511287798066
 MAX_LATITUDE = math.degrees(math.atan(math.sinh(math.pi)))
 
-# 赤道上の 256px タイル 1 画素の地上解像度 [m/px]（z=0）。
-_BASE_RESOLUTION = 2 * ORIGIN_SHIFT / 256
-
 DEFAULT_TILE_SIZE = 512
 
 
@@ -149,26 +146,37 @@ def clip_to_mercator(
 
 
 def source_resolution_m(src: rasterio.DatasetReader) -> float:
-    """ソースの地上解像度 [m/px] を CRS の単位に依存せず推定する。
+    """ソースの解像度を **Web メルカトル上の m/px** で推定する。
 
     ソース範囲を Web メルカトルへ変換して画素数で割る。地理座標系（度）でも
     投影座標系（メートル）でも同じように扱える。
+
+    **地上解像度ではない**点に注意。Web メルカトルは緯度が上がるほど引き伸ばされるので、
+    この値は地上解像度の 1/cosφ 倍になる。タイル解像度（`tile_resolution`）も同じ
+    メルカトル上の量なので、両者はそのまま比べられる——片方だけに cosφ を掛けると、
+    高緯度でズームを 1 段以上取り違える。
     """
     merc = transform_bounds(src.crs, WEB_MERCATOR, *src.bounds)
     return min((merc[2] - merc[0]) / src.width, (merc[3] - merc[1]) / src.height)
 
 
-def auto_max_zoom(res_m: float, bounds: tuple[float, float, float, float], tile_size: int) -> int:
+def auto_max_zoom(res_m: float, tile_size: int) -> int:
     """ソース解像度と同等以上に細かくなる最小のズームを返す。
 
     「これ以上ズームを上げてもソースに情報が無い」ところで止める。低ズーム側から探索し、
     タイル解像度がソース解像度以下になった最初のズームを採る（高ズーム側から探すと、
     粗いソースでも最大ズームを返してしまう）。
+
+    Args:
+        res_m: ソースの解像度（**Web メルカトル上の m/px**。`source_resolution_m` の戻り値）
+        tile_size: タイル一辺の画素数
+
+    比較する両辺はどちらも Web メルカトル上の量なので、緯度による補正は要らない。
+    片方にだけ cosφ を掛けると、高緯度でズームが 1 段以上浅くなる
+    （60 度で 1 段、80 度で 2 段以上、ソース解像度の半分以下しか使われなくなる）。
     """
-    lat_mid = (bounds[1] + bounds[3]) / 2.0
-    scale = math.cos(math.radians(max(-MAX_LATITUDE, min(MAX_LATITUDE, lat_mid))))
     for zoom in range(0, 25):
-        if _BASE_RESOLUTION * scale / (2**zoom * tile_size / 256) <= res_m:
+        if tile_resolution(zoom, tile_size) <= res_m:
             return zoom
     return 24
 

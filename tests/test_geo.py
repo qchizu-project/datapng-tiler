@@ -24,6 +24,7 @@ from datapng_tiler.geo import (
     get_tile_range,
     lng_lat_to_tile,
     source_bounds_wgs84,
+    source_resolution_m,
     tile_bounds_lnglat,
     tile_resolution,
     tile_sample_x3857,
@@ -198,13 +199,60 @@ def test_メルカトル限界を超える緯度はクリップされる():
 
 
 def test_自動最大ズームはソース解像度で頭打ちになる():
-    bounds = (139.0, 35.0, 140.0, 36.0)
-    # 赤道換算 10m 相当。緯度 35.5 度では cos で縮むぶん 1 段浅くなりうる
-    coarse = auto_max_zoom(100.0, bounds, tile_size=256)
-    fine = auto_max_zoom(1.0, bounds, tile_size=256)
+    coarse = auto_max_zoom(100.0, tile_size=256)
+    fine = auto_max_zoom(1.0, tile_size=256)
     assert coarse < fine
     # 512px タイルは同じ解像度を 1 段低いズームで達成する
-    assert auto_max_zoom(1.0, bounds, tile_size=512) == fine - 1
+    assert auto_max_zoom(1.0, tile_size=512) == fine - 1
+
+
+def test_自動最大ズームはタイル解像度と同じ土俵で比べる():
+    """ソース解像度もタイル解像度も Web メルカトル上の量。緯度補正を掛けてはいけない。
+
+    片方にだけ cosφ を掛けると、高緯度でソース解像度の半分以下しか使わないタイルになる。
+    """
+    for zoom in (8, 12, 16):
+        for tile_size in (256, 512):
+            resolution = tile_resolution(zoom, tile_size)
+            # ちょうど z のタイル解像度に等しいソースは、その z で頭打ちになる
+            assert auto_max_zoom(resolution, tile_size) == zoom
+            # 2 倍未満に粗いだけなら、まだ z が要る（z-1 は 2 倍粗い）
+            assert auto_max_zoom(resolution * 1.99, tile_size) == zoom
+            # ちょうど 2 倍粗ければ 1 段浅くなる
+            assert auto_max_zoom(resolution * 2.0, tile_size) == zoom - 1
+
+
+def test_高緯度でもズームが浅くならない(tmp_path):
+    """緯度 60 度・地上 10m 等方のソース。メルカトル上では約 20m/px なので z12 が正しい。
+
+    cosφ を片側にだけ掛けていた頃はここで z11 を返し、ソース解像度の半分しか使わない
+    タイルセットになっていた。
+    """
+    from rasterio.transform import from_origin
+
+    size = 256
+    lat_step = 10.0 / 111320.0
+    # 地上で等方にするため、経度方向の刻みは 1/cosφ 倍にする
+    lon_step = lat_step / math.cos(math.radians(60.0))
+    path = tmp_path / "n60.tif"
+    with rasterio.open(
+        path,
+        "w",
+        driver="GTiff",
+        height=size,
+        width=size,
+        count=1,
+        dtype="float32",
+        crs="EPSG:4326",
+        transform=from_origin(10.0, 60.0, lon_step, lat_step),
+    ) as dst:
+        dst.write(np.zeros((size, size), dtype=np.float32), 1)
+
+    with rasterio.open(path) as src:
+        resolution = source_resolution_m(src)
+    assert resolution == pytest.approx(20.0, rel=0.05)
+    assert auto_max_zoom(resolution, tile_size=512) == 12
+    assert tile_resolution(12, 512) < resolution < tile_resolution(11, 512)
 
 
 def test_自動最小ズームはデータ全体が収まるズーム():
