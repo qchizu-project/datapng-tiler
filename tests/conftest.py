@@ -7,6 +7,7 @@ from __future__ import annotations
 
 from collections.abc import Callable
 from pathlib import Path
+from typing import Any
 
 import numpy as np
 import pytest
@@ -53,6 +54,18 @@ def write_raster() -> Callable[..., Path]:
     return _write
 
 
+# `mercator_ramp` が表す 1 次関数 v = A*x + B*y + C の係数。
+# EPSG:3857 の座標は 1e7 のオーダーなので、量子化しても 24 ビットに収まる大きさに抑える。
+RAMP_A = 1e-4
+RAMP_B = 5e-5
+RAMP_C = 0.0
+
+
+def ramp(x, y):
+    """`mercator_ramp` が表す関数（配列も可）。"""
+    return RAMP_A * x + RAMP_B * y + RAMP_C
+
+
 @pytest.fixture
 def mercator_ramp(write_raster) -> Callable[..., Path]:
     """EPSG:3857 上で「値 = a·x + b·y」となるラスタを書き出すヘルパを返す。
@@ -69,15 +82,20 @@ def mercator_ramp(write_raster) -> Callable[..., Path]:
         pixel_size: float,
         width: int,
         height: int,
-        a: float = 1e-3,
-        b: float = 5e-4,
-        c: float = 100.0,
+        a: float = RAMP_A,
+        b: float = RAMP_B,
+        c: float = RAMP_C,
         nodata: float | None = None,
+        nodata_cols: slice | None = None,
     ) -> Path:
         # 画素中心の座標で値を作る
         cols = x0 + (np.arange(width) + 0.5) * pixel_size
         rows = y0 - (np.arange(height) + 0.5) * pixel_size
         data = (a * cols[np.newaxis, :] + b * rows[:, np.newaxis] + c).astype(np.float32)
+        if nodata_cols is not None:
+            if nodata is None:
+                raise ValueError("nodata_cols を使うには nodata の指定が必要です")
+            data[:, nodata_cols] = nodata
         path.parent.mkdir(parents=True, exist_ok=True)
         with rasterio.open(
             path,
@@ -98,13 +116,9 @@ def mercator_ramp(write_raster) -> Callable[..., Path]:
 
 
 @pytest.fixture
-def ramp_value() -> Callable[[float, float], float]:
+def ramp_value() -> Callable[..., Any]:
     """`mercator_ramp` が表す関数（既定の係数）。"""
-
-    def _value(x: float, y: float, a: float = 1e-3, b: float = 5e-4, c: float = 100.0) -> float:
-        return a * x + b * y + c
-
-    return _value
+    return ramp
 
 
 @pytest.fixture
