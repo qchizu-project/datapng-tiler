@@ -88,11 +88,11 @@ def _convert_batch(
             continue
 
         values, valid = _source.read(tile_path(src_root, zoom, x, y, extension))
-        rgb, valid = _mode.encoding.encode(values, valid=valid)
+        raw, valid = _mode.encoding.encode_raw(values, valid=valid)
         if not valid.any():
             skipped += 1
             continue
-        _mode.save_image(_mode.compose(rgb, valid), out_path)
+        _mode.save_image(_mode.compose(raw, valid), out_path)
         written += 1
     return written, skipped
 

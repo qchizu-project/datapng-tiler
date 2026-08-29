@@ -33,7 +33,7 @@ from rasterio.vrt import WarpedVRT
 
 from datapng_tiler.codec import NumericalEncoding
 from datapng_tiler.geo import WEB_MERCATOR, TileWindow, WarpedVrtParams
-from datapng_tiler.imageio import load_tile, rgb_to_image
+from datapng_tiler.imageio import load_tile, rgb_to_image, rgba_to_image
 from datapng_tiler.modes.base import ChildSlot, TileMode
 
 # 再投影トランスフォーマの誤差許容（単位: ソース画素）。GDAL 既定の 0.125 は近似多項式を
@@ -175,7 +175,9 @@ class NumericalMode(TileMode):
             window.read_col, window.read_row, window.read_w, window.read_h
         )
         data = vrt.read(indexes=self.band, window=rio_window, masked=True)
-        values = np.ma.getdata(data).astype(np.float64)
+        # ソースの dtype のまま持つ（float32 を float64 へ広げると、タイル 1 枚ごとに
+        # 倍の配列を作り直すことになる。変換式の中で必要なぶんだけ float64 に上がる）
+        values = np.ma.getdata(data)
         valid = ~np.ma.getmaskarray(data)
 
         if vrt.nodata is None:
@@ -184,10 +186,11 @@ class NumericalMode(TileMode):
             coverage = vrt.read(indexes=vrt.count, window=rio_window)
             valid = valid & (coverage > 0)
 
-        valid = valid & ~np.isnan(values)
+        if np.issubdtype(values.dtype, np.floating):
+            valid = valid & ~np.isnan(values)
 
         if window.read_w != self.tile_size or window.read_h != self.tile_size:
-            full_values = np.zeros((self.tile_size, self.tile_size), dtype=np.float64)
+            full_values = np.zeros((self.tile_size, self.tile_size), dtype=values.dtype)
             full_valid = np.zeros((self.tile_size, self.tile_size), dtype=bool)
             r0, r1 = window.dst_row, window.dst_row + window.read_h
             c0, c1 = window.dst_col, window.dst_col + window.read_w
@@ -202,23 +205,25 @@ class NumericalMode(TileMode):
     def build_image(self, data: NumericalTile) -> Image.Image | None:
         if not data.valid.any():
             return None
-        rgb, valid = self.encoding.encode(data.values, valid=data.valid)
+        raw, valid = self.encoding.encode_raw(data.values, valid=data.valid)
         if not valid.any():
             return None
-        return self.compose(rgb, valid)
+        return self.compose(raw, valid)
 
-    def compose(self, rgb: np.ndarray, valid: np.ndarray) -> Image.Image:
-        """RGB と有効マスクから、無効値の表し方に応じた画像を作る。"""
+    def compose(self, raw: np.ndarray, valid: np.ndarray) -> Image.Image:
+        """raw 整数と有効マスクから、無効値の表し方に応じた画像を作る。
+
+        RGB を作ってから塗り直すのではなく、raw から直接必要な並びを作る
+        （タイル 1 枚あたりの配列走査が減る）。
+        """
         if self.invalid_color is None:
             if valid.all():
                 # 無効画素が 1 つも無いので、アルファチャンネルを持たない RGB で書く。
                 # 読み手はアルファが無い＝無効画素が無いと解釈でき、容量も減る。
-                return rgb_to_image(rgb)
-            alpha = np.where(valid, 255, 0).astype(np.uint8)
-            # 透明画素の RGB は仕様上意味を持たない（WebP は保存しない）ので 0 に潰す
-            rgb = np.where(valid[..., np.newaxis], rgb, 0).astype(np.uint8)
-            return rgb_to_image(rgb, alpha)
+                return rgb_to_image(self.encoding.raw_to_rgb(raw))
+            return rgba_to_image(self.encoding.raw_to_rgba(raw, valid))
 
+        rgb = self.encoding.raw_to_rgb(raw)
         color = np.array(self.invalid_color, dtype=np.uint8)
         collision = valid & np.all(rgb == color, axis=-1)
         if collision.any():
@@ -227,7 +232,7 @@ class NumericalMode(TileMode):
                 f"（{int(collision.sum())} 画素）。この色は無効値と区別できません。"
                 " --invalid-color で別の色を指定するか、アルファで無効値を表してください"
             )
-        rgb = np.where(valid[..., np.newaxis], rgb, color).astype(np.uint8)
+        rgb[~valid] = color
         return rgb_to_image(rgb)
 
     # --- オーバービュー -------------------------------------------------------------
@@ -261,7 +266,7 @@ class NumericalMode(TileMode):
 
         if not valid.any():
             return None
-        return self.compose(self.encoding.raw_to_rgb(raw), valid)
+        return self.compose(raw, valid)
 
     # --- TileJSON -------------------------------------------------------------------
 

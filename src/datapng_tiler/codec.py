@@ -80,12 +80,15 @@ def _quantize(
     カスケード平均しても平均値がずれない。
 
     Returns:
-        (raw 値 int32, 更新後の有効マスク)
+        (raw 値 int64, 更新後の有効マスク)
     """
-    raw = np.zeros(scaled.shape, dtype=np.int64)
-    np.rint(scaled, out=raw, where=valid, casting="unsafe")
+    # np.rint(..., where=) はマスク付き演算のぶん遅く、無効画素の値は後で 0 に潰すので
+    # 全画素まとめて丸める（無効画素の scaled は呼び出し側が有限値に均してある）。
+    raw = np.rint(scaled).astype(np.int64)
 
-    out_of_range = valid & ((raw < lo) | (raw > hi))
+    below = raw < lo
+    np.logical_or(below, raw > hi, out=below)
+    out_of_range = np.logical_and(below, valid, out=below)
     if out_of_range.any():
         if on_overflow == "error":
             bad = values[out_of_range]
@@ -97,11 +100,11 @@ def _quantize(
                 f" --on-overflow clamp / nodata を指定してください。"
             )
         if on_overflow == "clamp":
-            raw = np.clip(raw, lo, hi)
+            np.clip(raw, lo, hi, out=raw)
         else:  # "nodata"
             valid = valid & ~out_of_range
 
-    raw = np.where(valid, raw, 0).astype(np.int32)
+    raw[~valid] = 0
     return raw, valid
 
 
@@ -150,12 +153,23 @@ class NumericalEncoding:
     # --- 値 ↔ raw ------------------------------------------------------------------
 
     def _to_scaled(self, values: np.ndarray) -> np.ndarray:
-        """値を raw 値のスケール（丸める前の実数）へ変換する。"""
+        """値を raw 値のスケール（丸める前の実数）へ変換する。
+
+        **必ず float64 で計算する。** NumPy は Python の float を「弱い」型として扱うため、
+        float32 の配列に素直に演算子を使うと float32 のまま計算される。factor が小さい
+        （= raw 値が大きい）ときに float32 の仮数では丸めが 1 整数ぶんずれることがあり、
+        入力の dtype によって生成タイルが変わってしまう。`dtype=np.float64` を明示し、
+        以降は同じ配列上で計算して余分なコピーを作らない。
+        """
+        values = np.asarray(values)
         if self.special == "mapbox":
-            return (values + 10000.0) / 0.1
+            scaled = np.add(values, 10000.0, dtype=np.float64)
+            return np.divide(scaled, 0.1, out=scaled)
         if self.special == "terrarium":
-            return (values + 32768.0) * 256.0
-        return (values - self.offset) / self.factor
+            scaled = np.add(values, 32768.0, dtype=np.float64)
+            return np.multiply(scaled, 256.0, out=scaled)
+        scaled = np.subtract(values, self.offset, dtype=np.float64)
+        return np.divide(scaled, self.factor, out=scaled)
 
     def raw_to_values(self, raw: np.ndarray) -> np.ndarray:
         """raw 値を実数値へ復号する（仕様の各復号式）。"""
@@ -173,13 +187,28 @@ class NumericalEncoding:
         """raw 値（符号付き / 符号なしのどちらでも）を RGB バイトへ分解する。
 
         下位 24 ビットを取り出すため、符号付きの負値も 2 の補数表現のまま正しく並ぶ。
+
+        ビッグエンディアンの uint32 として並べ替え、バイト列として見る。こうすると
+        シフトとマスクを 3 回ずつ繰り返さずに済み、タイル数が多いときの差が大きい
+        （バイト順は `>u4` が保証するので、実行環境のエンディアンには依存しない）。
         """
-        masked = raw.astype(np.int64) & 0xFFFFFF
-        rgb = np.empty(raw.shape + (3,), dtype=np.uint8)
-        rgb[..., 0] = (masked >> 16) & 0xFF
-        rgb[..., 1] = (masked >> 8) & 0xFF
-        rgb[..., 2] = masked & 0xFF
-        return rgb
+        packed = (np.asarray(raw) & 0xFFFFFF).astype(">u4")
+        # バイトは [0, R, G, B] の順に並ぶ。先頭の 0 を落とす
+        return np.ascontiguousarray(packed.view(np.uint8).reshape(raw.shape + (4,))[..., 1:])
+
+    @staticmethod
+    def raw_to_rgba(raw: np.ndarray, valid: np.ndarray) -> np.ndarray:
+        """raw 値と有効マスクから RGBA バイトを作る（無効画素は完全透明・RGB は 0）。
+
+        `_raw_to_rgb` と同じバイトビューの手口で、アルファまで 1 回で並べる。
+        無効画素の RGB を 0 に潰しているのは、透明画素の RGB が仕様上意味を持たない
+        （WebP の可逆圧縮でも保存されない）ため。
+        """
+        packed = ((np.asarray(raw) & 0xFFFFFF) << 8).astype(">u4")
+        packed[~valid] = 0
+        packed |= np.where(valid, np.uint32(0xFF), np.uint32(0))
+        # バイトは [R, G, B, A] の順に並ぶ
+        return np.ascontiguousarray(packed.view(np.uint8).reshape(raw.shape + (4,)))
 
     def rgb_to_raw(self, rgb: np.ndarray) -> np.ndarray:
         """RGB バイトを raw 値へ戻す（正式エンコードは符号付き、互換は符号なし）。"""
@@ -198,6 +227,32 @@ class NumericalEncoding:
 
     # --- 公開 API ------------------------------------------------------------------
 
+    def encode_raw(
+        self, values: np.ndarray, valid: np.ndarray | None = None
+    ) -> tuple[np.ndarray, np.ndarray]:
+        """値の配列を raw 整数へ量子化する（バイトへ並べる前段）。
+
+        RGB と RGBA のどちらに並べるかは、無効値の表し方を知っている呼び出し側が決める。
+        ここで RGB を作ってから塗り直すと、配列を何度も走査することになる。
+
+        Returns:
+            (raw 値 int64, 有効マスク)。無効画素の raw は 0。``on_overflow="nodata"`` では
+            有効マスクが更新されるため、**戻り値のマスクを使うこと**。
+        """
+        values = np.asarray(values)
+        if valid is None:
+            valid = np.ones(values.shape, dtype=bool)
+        else:
+            valid = np.asarray(valid, dtype=bool)
+        if np.issubdtype(values.dtype, np.floating):
+            valid = valid & ~np.isnan(values)
+
+        # 無効画素は 0 に均してから変換する。NaN を丸めると未定義の整数になるうえ、
+        # 範囲外の値が紛れていても無効画素は検査対象から外したいため。
+        # 変換式は Python の float と混ざるので、float32 入力でも float64 に上がる。
+        scaled = self._to_scaled(np.where(valid, values, 0))
+        return _quantize(scaled, valid, self.raw_min, self.raw_max, self.on_overflow, values=values)
+
     def encode(
         self, values: np.ndarray, valid: np.ndarray | None = None
     ) -> tuple[np.ndarray, np.ndarray]:
@@ -212,19 +267,7 @@ class NumericalEncoding:
             （呼び出し側がアルファ 0 または無効色を載せる）。``on_overflow="nodata"`` では
             有効マスクが更新されるため、**戻り値のマスクを使うこと**。
         """
-        values = np.asarray(values, dtype=np.float64)
-        if valid is None:
-            valid = np.ones(values.shape, dtype=bool)
-        else:
-            valid = np.asarray(valid, dtype=bool)
-        valid = valid & ~np.isnan(values)
-
-        scaled = np.zeros(values.shape, dtype=np.float64)
-        np.copyto(scaled, self._to_scaled(np.where(valid, values, 0.0)), where=valid)
-
-        raw, valid = _quantize(
-            scaled, valid, self.raw_min, self.raw_max, self.on_overflow, values=values
-        )
+        raw, valid = self.encode_raw(values, valid)
         return self._raw_to_rgb(raw), valid
 
     def decode(self, rgb: np.ndarray) -> np.ndarray:

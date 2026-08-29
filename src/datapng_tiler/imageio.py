@@ -91,6 +91,13 @@ def rgb_to_image(rgb: np.ndarray, alpha: np.ndarray | None = None) -> Image.Imag
     return Image.fromarray(rgba, "RGBA")
 
 
+def rgba_to_image(rgba: np.ndarray) -> Image.Image:
+    """RGBA 配列 `(h, w, 4)` uint8 から PIL 画像を作る（並べ替え済みの配列を受け取る）。"""
+    if rgba.dtype != np.uint8 or rgba.ndim != 3 or rgba.shape[2] != 4:
+        raise ValueError(f"rgba は (h, w, 4) の uint8 配列であるべきです: {rgba.shape}")
+    return Image.fromarray(np.ascontiguousarray(rgba), "RGBA")
+
+
 def indexed_to_image(
     indices: np.ndarray, palette: list[tuple[int, int, int]], transparent_index: int | None
 ) -> Image.Image:

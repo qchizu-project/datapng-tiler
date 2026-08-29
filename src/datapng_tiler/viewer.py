@@ -57,19 +57,24 @@ BASEMAP_CHOICES = ("none", *BASEMAPS)
 _OVERZOOM = 1
 
 _VIEWER_JS = """
-const dp = CONFIG.tilejson.datapng || {};
-const bounds = CONFIG.tilejson.bounds;
+const tj = CONFIG.tilejson;
+const dp = tj.datapng || {};
+const bounds = tj.bounds;
 const leafletBounds = [[bounds[1], bounds[0]], [bounds[3], bounds[2]]];
 
-const map = L.map('map', {
-  minZoom: CONFIG.tilejson.minzoom,
-  maxZoom: CONFIG.tilejson.maxzoom + CONFIG.overzoom,
-});
+// Leaflet の地図ズームは 256px タイルを前提にしている。tileSize が 256 でない場合、
+// 地図ズーム Z に対応するタイル z は Z - scale（scale = log2(tileSize/256)）になる。
+// これを zoomOffset に反映しないと、1 段ずれたタイルを取りに行って何も表示されない。
+const scale = Math.log2(tj.tileSize / 256);
+const mapMinZoom = tj.minzoom + scale;
+const mapMaxZoom = tj.maxzoom + scale;
+
+const map = L.map('map', { minZoom: mapMinZoom, maxZoom: mapMaxZoom + CONFIG.overzoom });
 
 if (CONFIG.basemap) {
   L.tileLayer(CONFIG.basemap.url, {
     maxNativeZoom: Number(CONFIG.basemap.max_zoom),
-    maxZoom: CONFIG.tilejson.maxzoom + CONFIG.overzoom,
+    maxZoom: mapMaxZoom + CONFIG.overzoom,
     attribution: CONFIG.basemap.attribution,
   }).addTo(map);
 }
@@ -96,19 +101,32 @@ const DataLayer = L.TileLayer.extend({
       }
       done(null, tile);
     };
-    tile.onerror = () => done(null, tile);
+    tile.onerror = () => {
+      // createTile を差し替えると Leaflet 既定のエラー処理も置き換わるため、
+      // errorTileUrl（透明画像）への差し替えを自前で行う。
+      // やらないと、生成されなかった空タイルの位置に壊れた画像の枠が出る。
+      const fallback = this.options.errorTileUrl;
+      if (fallback && tile.src !== fallback) {
+        tile.src = fallback;
+        return;
+      }
+      done(null, tile);
+    };
     tile.src = this.getTileUrl(coords);
     return tile;
   },
 });
 
-const layer = new DataLayer(CONFIG.tilejson.tiles[0], {
-  minNativeZoom: CONFIG.tilejson.minzoom,
-  maxNativeZoom: CONFIG.tilejson.maxzoom,
-  tileSize: CONFIG.tilejson.tileSize,
-  zoomOffset: 0,
+new DataLayer(tj.tiles[0], {
+  minNativeZoom: mapMinZoom,
+  maxNativeZoom: mapMaxZoom,
+  tileSize: tj.tileSize,
+  zoomOffset: -scale,
   bounds: leafletBounds,
-  attribution: CONFIG.tilejson.attribution || '',
+  attribution: tj.attribution || '',
+  // 空タイル（生成されなかった領域）で壊れた画像アイコンを出さない
+  errorTileUrl:
+    'data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7',
 }).addTo(map);
 
 map.fitBounds(leafletBounds);
@@ -130,13 +148,15 @@ function decodeNumerical(r, g, b) {
 }
 
 function sample(latlng) {
-  const zoom = Math.min(map.getZoom(), CONFIG.tilejson.maxzoom);
-  const size = CONFIG.tilejson.tileSize;
-  const point = map.project(latlng, zoom).divideBy(size).floor();
+  // タイル座標は「地図ズーム」で数える（createTile が受け取る coords と同じ基準）。
+  const zoom = Math.min(Math.round(map.getZoom()), mapMaxZoom);
+  const size = tj.tileSize;
+  const projected = map.project(latlng, zoom);
+  const point = projected.divideBy(size).floor();
   const image = pixels.get(`${zoom}/${point.x}/${point.y}`);
   if (!image) return null;
 
-  const inTile = map.project(latlng, zoom).subtract(point.multiplyBy(size));
+  const inTile = projected.subtract(point.multiplyBy(size));
   const col = Math.min(size - 1, Math.max(0, Math.floor(inTile.x)));
   const row = Math.min(size - 1, Math.max(0, Math.floor(inTile.y)));
   const offset = (row * image.width + col) * 4;
