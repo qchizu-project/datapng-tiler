@@ -179,7 +179,7 @@ readout.onAdd = function () {
 readout.addTo(map);
 
 function invalidByAlpha(px) {
-  // 仕様 §3.2.2: アルファチャンネルを持つタイルはアルファ 0 のみが無効
+  // 仕様 §3.2.2 の 1.: アルファ 0 は無効。半透明（0 < a < 255）は有効
   return px.a === 0;
 }
 
@@ -195,10 +195,9 @@ map.on('mousemove', (event) => {
       '<span class="hint">タイルなし（別オリジンだと読み取れません）</span>';
     return;
   }
-  // canvas は常にアルファを返すため「タイルがアルファチャンネルを持つか」は区別できない。
-  // ただし仕様 §3.2.2 により両者は排他なので、どちらの判定も安全に併用できる
-  // （アルファ無しのタイルは canvas 上で常に a=255、invalidColor 付きのタイルは
-  //  アルファチャンネルを持たない）。
+  // 仕様 §3.2.2 の順序どおり: まず透明度、次に「完全に透明でない画素」の色。
+  // || の短絡評価により、透明画素は色の判定に進まない（透明画素の RGB は WebP で
+  // 保存されないため、判定に使ってはならない）。
   const invalid = invalidByAlpha(px) || invalidByColor(px);
   if (invalid) {
     readout._div.innerHTML = '<b>無効値</b>';

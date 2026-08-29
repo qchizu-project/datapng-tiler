@@ -16,7 +16,7 @@ Use it to serve **continuous values** (elevation, depth, temperature) or **categ
 | Storage | value quantized to a signed 24-bit integer, packed into RGB | legend colors, byte for byte |
 | Typical use | elevation, depth, temperature | land use, hazard classes |
 
-Tiles are **WebP (lossless) by default**; PNG is also available. Both are lossless, so values are never degraded. The format is carried by the tile URL extension in the TileJSON — there is no dedicated field (spec §2.2).
+Tiles are **WebP (lossless) by default**; PNG is also available. Both are lossless, so values are never degraded.
 
 ## Install
 
@@ -57,14 +57,14 @@ datapng-tiler validate tiles/tiles.json --tiles tiles/
 
 ## Invalid values
 
-Per specification §3.2.2 the representation is exclusive:
+Invalid pixels are marked either by alpha 0 or by a designated color — one or the other:
 
 | | invalid pixels | `invalidColor` |
 |---|---|---|
-| default (with alpha) | alpha 0 | not declared |
+| default | alpha 0 | not declared |
 | `--no-alpha --invalid-color R G B` | that color | declared |
 
-Lossless WebP does not preserve the RGB of fully transparent pixels, so color matching cannot work on tiles that carry alpha. The CLI refuses to combine the two.
+Per specification §3.2.2, `invalidColor` **cannot designate a fully transparent pixel** (lossless WebP does not preserve the RGB of such pixels). In the default output invalid pixels are fully transparent, so declaring a color would have no effect; the CLI rejects `--invalid-color` on its own.
 
 ## Preview
 

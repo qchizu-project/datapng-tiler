@@ -60,7 +60,10 @@ def test_タイルURLが空ならエラー():
 
 
 def test_アルファで無効値を表すとき_invalidColor_を出さない():
-    """仕様 §3.2.2 MUST NOT。既定（アルファ）では宣言してはならない。"""
+    """仕様 §3.2.2 の invalidColor は完全に透明な画素を指せない。
+
+    既定の出力では無効画素が完全に透明になるので、色を宣言しても判定に使われない。
+    """
     assert "invalidColor" not in numerical_datapng()
     # 明示的にアルファ無し出力を選んだときだけ出す
     assert numerical_datapng(invalid_color=(128, 0, 0))["invalidColor"] == [128, 0, 0]
@@ -215,15 +218,15 @@ def test_タイルURLから拡張子を取り出す():
     assert extension_from_tiles_url("https://example.org/tiles/{z}/{x}/{y}") is None
 
 
-def test_アルファ付きタイルへの_invalidColor_宣言を検出する(tmp_path, holes_raster):
-    """仕様 §3.2.2 MUST NOT。TileJSON 単体では見えず、実タイルと突き合わせて初めて分かる。"""
+def test_アルファ無し出力の_invalidColor_は検証を通る(tmp_path, holes_raster):
+    """--no-alpha 出力では invalidColor が実タイルにそのまま入っている。"""
     out = tmp_path / "tiles"
-    mode = make_mode(resampling="nearest")
+    mode = make_mode(resampling="nearest", invalid_color=(128, 0, 0))
     tile_raster(holes_raster, out, mode, max_zoom=ZOOM, min_zoom=ZOOM)
 
     doc = from_tree(out, mode)
-    doc["datapng"]["invalidColor"] = [128, 0, 0]
-    assert any(p.where == "datapng.invalidColor" for p in validate_tiles(doc, out))
+    assert doc["datapng"]["invalidColor"] == [128, 0, 0]
+    assert validate_tiles(doc, out) == []
 
 
 def test_凡例に無い色を検出する(tmp_path):

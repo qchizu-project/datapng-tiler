@@ -49,7 +49,7 @@
       },
       "minItems": 3,
       "maxItems": 3,
-      "description": "無効色 [r, g, b]。アルファチャンネルを持たないタイル専用"
+      "description": "追加無効色 [r, g, b]"
     },
     "dataRange": {
       "type": "object",

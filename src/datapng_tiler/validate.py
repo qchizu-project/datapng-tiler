@@ -7,8 +7,8 @@
    置かれたタイルと合っているかを確かめる
 
 スキーマだけ通っても、宣言と実タイルが食い違っていればクライアントは正しく復号できない。
-とくに仕様 §3.2.2 の「アルファチャンネルを持つタイルに `invalidColor` を指定しては
-ならない（MUST NOT）」は、TileJSON 単体では検出できない。
+「宣言したズーム範囲に実タイルが無い」「タイル URL の拡張子と中身の形式が違う」
+「凡例に無い色がタイルに現れる」は、いずれも TileJSON 単体では検出できない。
 """
 
 from __future__ import annotations
@@ -210,7 +210,6 @@ def _check_tile_contents(
 ) -> list[Problem]:
     problems: list[Problem] = []
     kind = datapng.get("type")
-    invalid_color = datapng.get("invalidColor")
     legend = datapng.get("legend")
     legend_colors: set[tuple[int, int, int]] | None = None
     if kind == "palette" and isinstance(legend, dict):
@@ -218,7 +217,6 @@ def _check_tile_contents(
             (item.get("r"), item.get("g"), item.get("b")) for item in legend.get("items", [])
         }
 
-    alpha_tiles_seen = False
     for path in tiles:
         where = str(path)
         actual_format = detect_format(path)
@@ -242,9 +240,6 @@ def _check_tile_contents(
                 )
             )
 
-        if alpha is not None:
-            alpha_tiles_seen = True
-
         if legend_colors is not None:
             visible = rgb.reshape(-1, 3) if alpha is None else rgb[alpha > 0]
             if visible.size:
@@ -254,16 +249,6 @@ def _check_tile_contents(
                     listed = ", ".join(str(c) for c in sorted(unknown)[:5])
                     problems.append(Problem(where, f"凡例に無い色があります: {listed}"))
 
-    if invalid_color is not None and alpha_tiles_seen:
-        # 仕様 §3.2.2: アルファチャンネルを持つタイルと invalidColor は併用できない
-        problems.append(
-            Problem(
-                "datapng.invalidColor",
-                "アルファチャンネルを持つタイルと併用できません（仕様 §3.2.2 MUST NOT）。"
-                " WebP の可逆圧縮は透明画素の RGB を保存しないため、宣言した色が実タイルに"
-                "入っている保証がありません",
-            )
-        )
     return problems
 
 

@@ -6,8 +6,8 @@
 **無効値の表し方は 2 択で、混ぜない**:
 
 - `invalid_color=None`（既定）: アルファ 0 で表す。無効画素があるタイルは RGBA、
-  1 画素も無い場合は RGB（アルファチャンネルを持たない）で書く。アルファを持たない
-  タイルに無効画素は無いので、`invalidColor` を宣言しなくても判定は一意に定まる。
+  1 画素も無い場合は RGB（アルファチャンネルを持たない）で書く。仕様 §3.2.2 の
+  `invalidColor` は完全に透明な画素を指せないので、この出力では宣言しない。
 - `invalid_color=(r, g, b)`: アルファを使わず、無効画素をその色で塗る。TileJSON には
   `invalidColor` を出す。有効値がその色に符号化されると区別できなくなるため、衝突を検査する。
 
@@ -296,8 +296,8 @@ class NumericalMode(TileMode):
         fields.update(self.encoding.datapng_fields())
         if self.unit:
             fields["unit"] = self.unit
-        # invalidColor はアルファを持たないタイル専用（仕様 §3.2.2）。アルファで無効値を
-        # 表す既定の出力では、宣言してはならない（MUST NOT）。
+        # 既定（アルファ）の出力では無効画素が完全に透明になり、仕様 §3.2.2 により
+        # invalidColor の判定対象から外れる。宣言しても意味を持たないので出さない。
         if self.invalid_color is not None:
             fields["invalidColor"] = list(self.invalid_color)
         if self.data_range is not None:

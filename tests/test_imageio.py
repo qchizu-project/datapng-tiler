@@ -148,3 +148,22 @@ def test_圧縮設定の範囲を検証する():
         TileFormat("webp", webp_method=7)
     with pytest.raises(ValueError, match="png_compress_level"):
         TileFormat("png", png_compress_level=10)
+
+
+def test_WebP_は透明画素の_RGB_を保存しない(tmp_path):
+    """仕様 §3.2.2 が「invalidColor で透明画素を指せない」と定める根拠を実測で固定する。
+
+    ここが崩れる（保存されるようになる）としても仕様上の問題は起きないが、
+    「なぜこの制約があるのか」を実行できる形で残しておく。
+    """
+    rgb = np.zeros((8, 8, 3), dtype=np.uint8)
+    rgb[:, :] = (128, 0, 0)
+    alpha = np.zeros((8, 8), dtype=np.uint8)  # 全画素が完全に透明
+    path = tmp_path / "tile.webp"
+    TileFormat("webp").save(rgb_to_image(rgb, alpha), path)
+
+    loaded, loaded_alpha = load_tile(path)
+    assert loaded_alpha is not None and not loaded_alpha.any()
+    assert not (loaded == (128, 0, 0)).all(), (
+        "透明画素の RGB が保存されている。仕様の前提が変わっていないか確認すること"
+    )

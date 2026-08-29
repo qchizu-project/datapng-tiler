@@ -151,14 +151,17 @@ def _build_encoding(args: argparse.Namespace) -> NumericalEncoding:
 def _invalid_color(args: argparse.Namespace) -> tuple[int, int, int] | None:
     """無効値の表し方を決める（アルファ or 無効色）。
 
-    仕様 §3.2.2 により両者は排他。`--invalid-color` だけを指定した場合は `--no-alpha` を
-    忘れているとみなしてエラーにする（黙ってどちらかに倒すと、TileJSON の宣言と実タイルが
-    食い違ったまま配信されうる）。
+    本ツールの出力では、無効値はどちらか一方で表す。既定（アルファ）の出力では無効画素が
+    完全に透明になり、仕様 §3.2.2 により `invalidColor` の判定対象から外れるため、色を
+    指定しても意味を持たない。`--invalid-color` だけを渡された場合は `--no-alpha` を
+    忘れているとみなしてエラーにする（黙って無視すると、指定したつもりの出力と実物が
+    食い違う）。
     """
     if args.invalid_color and not args.no_alpha:
         raise SystemExit(
             "エラー: --invalid-color は --no-alpha と併せて指定してください"
-            "（アルファチャンネルを持つタイルに invalidColor は指定できません。仕様 §3.2.2）"
+            "（既定の出力では無効画素が完全に透明になり、invalidColor の判定対象から"
+            "外れるため意味を持ちません。仕様 §3.2.2）"
         )
     if not args.no_alpha:
         return None
