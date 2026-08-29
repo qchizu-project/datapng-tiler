@@ -1,0 +1,72 @@
+name: release
+
+# v* タグの push でビルドし、PyPI へ公開して GitHub Release を作成する。
+# リリース手順:
+#   1. src/datapng_tiler/__init__.py の __version__ と CHANGELOG.md を更新して main にマージ
+#   2. git tag vX.Y.Z && git push origin vX.Y.Z
+#
+# PyPI への公開は Trusted Publishing（OIDC）で行うため API トークンを secrets に置かない。
+# 初回のみ PyPI 側で pending publisher の登録が必要（README「リリース」を参照）。
+on:
+  push:
+    tags:
+      - "v*"
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: タグとパッケージバージョンの整合チェック
+        run: |
+          pkg=$(grep -oP '__version__ = "\K[^"]+' src/datapng_tiler/__init__.py)
+          if [ "v$pkg" != "$GITHUB_REF_NAME" ]; then
+            echo "タグ $GITHUB_REF_NAME と __version__ v$pkg が不一致"
+            exit 1
+          fi
+
+      - uses: astral-sh/setup-uv@v5
+
+      - name: テスト
+        run: uv run --locked pytest
+
+      - name: ビルド（sdist + wheel）
+        run: uv build
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: dist
+          path: dist/
+
+  pypi:
+    needs: build
+    runs-on: ubuntu-latest
+    environment: pypi
+    permissions:
+      id-token: write # Trusted Publishing（OIDC）に必要
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: dist
+          path: dist/
+      - uses: pypa/gh-action-pypi-publish@release/v1
+
+  github-release:
+    needs: pypi
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          name: dist
+          path: dist/
+      - name: GitHub Release 作成
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        run: gh release create "$GITHUB_REF_NAME" dist/* --title "$GITHUB_REF_NAME" --notes "詳細は CHANGELOG.md を参照。"
