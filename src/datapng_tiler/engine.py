@@ -344,6 +344,8 @@ def scan_tree(root: Path | str, extension: str | None = None) -> TreeSummary | N
     データがあるのに表示されなかったりする。
     """
     root = Path(root)
+    if not root.is_dir():
+        return None
     zooms: dict[int, set[tuple[int, int]]] = {}
     for zoom_dir in sorted(p for p in root.iterdir() if p.is_dir() and p.name.isdigit()):
         zoom = int(zoom_dir.name)

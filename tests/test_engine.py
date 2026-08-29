@@ -307,3 +307,8 @@ def test_ソース範囲と交差しない指定はエラー(tmp_path, ramp_rast
             min_zoom=ZOOM,
             bounds=(-10.0, -10.0, -9.0, -9.0),
         )
+
+
+def test_存在しないディレクトリの走査は_None(tmp_path):
+    """検証や TileJSON 生成の入口で、パスの打ち間違いが例外ではなく結果になる。"""
+    assert scan_tree(tmp_path / "missing") is None

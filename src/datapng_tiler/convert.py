@@ -118,6 +118,8 @@ def convert_tree(
     summary = scan_tree(src_root)
     if summary is None:
         raise ValueError(f"入力にタイルが 1 枚もありません: {src_root}")
+    if not summary.extension:
+        raise ValueError(f"入力タイルの形式を判定できませんでした: {src_root}")
 
     tiles = _list_tiles(src_root, summary.extension)
     first_rgb, _ = load_tile(tile_path(src_root, *tiles[0], summary.extension))

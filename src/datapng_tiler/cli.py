@@ -327,6 +327,10 @@ def cmd_tilejson(args: argparse.Namespace) -> int:
         print(f"エラー: タイルが 1 枚もありません: {output}", file=sys.stderr)
         return 1
 
+    if isinstance(mode, PaletteMode) and mode.legend_url:
+        legend_path = mode.legend.dump(output / DEFAULT_LEGEND_NAME)
+        print(f"凡例: {legend_path}（{mode.legend_url} から参照される想定）")
+
     doc = from_tree(
         output,
         mode,
