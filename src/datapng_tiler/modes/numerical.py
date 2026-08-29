@@ -99,6 +99,27 @@ def downsample_average(raw: np.ndarray, valid: np.ndarray) -> tuple[np.ndarray, 
     return out.astype(np.int32), out_valid
 
 
+def scan_value_range(root: Path, mode: NumericalMode, zoom: int) -> tuple[float, float] | None:
+    """生成済みタイルを復号して、実際の値域 (min, max) を求める。
+
+    TileJSON の `dataRange` は「デコード後の値の期待範囲」なので、申告ではなく
+    **実際に配信するタイル**から取る方が食い違わない。最大ズームだけを見る
+    （低ズームは最大ズームの縮小なので、値域はそれを超えない）。
+    """
+    lowest = highest = None
+    for tile in sorted((root / str(zoom)).rglob(f"*{mode.fmt.extension}")):
+        raw, valid = mode.load_child(tile)
+        if not valid.any():
+            continue
+        values = mode.encoding.raw_to_values(raw[valid])
+        low, high = float(values.min()), float(values.max())
+        lowest = low if lowest is None else min(lowest, low)
+        highest = high if highest is None else max(highest, high)
+    if lowest is None:
+        return None
+    return lowest, highest
+
+
 @dataclass(frozen=True, kw_only=True)
 class NumericalMode(TileMode):
     """数値型タイルの生成。
@@ -237,7 +258,7 @@ class NumericalMode(TileMode):
 
     # --- オーバービュー -------------------------------------------------------------
 
-    def _load_child(self, path: Path) -> tuple[np.ndarray, np.ndarray]:
+    def load_child(self, path: Path) -> tuple[np.ndarray, np.ndarray]:
         """子タイルを raw 整数と有効マスクとして読む。"""
         rgb, alpha = load_tile(path)
         raw = self.encoding.rgb_to_raw(rgb).astype(np.int32)
@@ -255,7 +276,7 @@ class NumericalMode(TileMode):
         canvas = np.zeros((ts * 2, ts * 2), dtype=np.int32)
         canvas_valid = np.zeros((ts * 2, ts * 2), dtype=bool)
         for slot in slots:
-            raw, valid = self._load_child(slot.path)
+            raw, valid = self.load_child(slot.path)
             canvas[slot.row : slot.row + ts, slot.col : slot.col + ts] = raw[:ts, :ts]
             canvas_valid[slot.row : slot.row + ts, slot.col : slot.col + ts] = valid[:ts, :ts]
 

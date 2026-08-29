@@ -18,6 +18,7 @@ import argparse
 import logging
 import os
 import sys
+from dataclasses import replace
 from pathlib import Path
 from typing import Any
 
@@ -45,7 +46,11 @@ from datapng_tiler.imageio import (
 from datapng_tiler.legend import Legend, LegendError
 from datapng_tiler.modes import NumericalMode, PaletteMode
 from datapng_tiler.modes.base import SUPPORT_CHOICES
-from datapng_tiler.modes.numerical import DEFAULT_RESAMPLING, RESAMPLING_CHOICES
+from datapng_tiler.modes.numerical import (
+    DEFAULT_RESAMPLING,
+    RESAMPLING_CHOICES,
+    scan_value_range,
+)
 from datapng_tiler.tilejson import default_tiles_url, from_tree, read_tilejson, write_tilejson
 from datapng_tiler.validate import validate as run_validate
 from datapng_tiler.viewer import (
@@ -248,6 +253,14 @@ def _write_sidecars(args: argparse.Namespace, mode, output: Path) -> None:
     if summary is None:
         logger.warning("タイルが 1 枚も無いため TileJSON は書きません")
         return
+
+    if getattr(args, "auto_data_range", False) and isinstance(mode, NumericalMode):
+        measured = scan_value_range(output, mode, summary.max_zoom)
+        if measured is None:
+            logger.warning("有効画素が無いため dataRange を実測できませんでした")
+        else:
+            mode = replace(mode, data_range=measured)
+            print(f"dataRange 実測: {measured[0]:.6g} 〜 {measured[1]:.6g}")
 
     if isinstance(mode, PaletteMode) and mode.legend_url:
         legend_path = output / DEFAULT_LEGEND_NAME
@@ -512,6 +525,11 @@ def build_parser() -> argparse.ArgumentParser:
         metavar=("MIN", "MAX"),
         help="デコード後の期待範囲（TileJSON に載せる）",
     )
+    tile.add_argument(
+        "--auto-data-range",
+        action="store_true",
+        help="dataRange を生成タイルから実測する（--data-range より優先。数値型のみ）",
+    )
     tile.add_argument("--precision", type=float, help="元データの有効な最小単位")
     _add_numerical_options(tile)
     _add_output_options(tile)
@@ -557,7 +575,9 @@ def build_parser() -> argparse.ArgumentParser:
     _add_metadata_options(convert)
     _add_run_options(convert)
     _add_sidecar_options(convert)
-    convert.set_defaults(func=cmd_convert, type="numerical", band=1, src_nodata=None)
+    convert.set_defaults(
+        func=cmd_convert, type="numerical", band=1, src_nodata=None, auto_data_range=False
+    )
 
     # tilejson
     tilejson = sub.add_parser("tilejson", help="既存タイル木から TileJSON を作る")

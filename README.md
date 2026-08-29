@@ -149,6 +149,8 @@ WebP の可逆圧縮は完全に透明な画素の RGB を保存しないため�
 --factor F --offset O        v = F × rawValue + O
 --encoding mapbox|terrarium  互換エンコードで出力する
 --on-overflow error|clamp|nodata               範囲外の値の扱い（既定: error）
+--data-range MIN MAX         TileJSON に載せる期待範囲
+--auto-data-range            期待範囲を生成タイルから実測する
 -z / --min-zoom              ズーム範囲（既定: ソース解像度から自動）
 --bounds W S E N             生成範囲（既定: ソース範囲）
 -j / --jobs N                並列プロセス数（既定: CPU 数）

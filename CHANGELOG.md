@@ -17,6 +17,7 @@ v0.7.0 に準拠します。
   - `factor` / `offset` による量子化、`specialEncoding`（mapbox / terrarium）互換出力
   - `support`（point / block）に応じた再投影アライメントとオーバービュー方式
   - パレット型は凡例定義（YAML / JSON）から色を引き、PNG ではインデックスカラーで書く
+  - `--auto-data-range` で `dataRange` を生成タイルから実測
   - プロセス並列・レジューム・アトミック書き込み
 - `convert`: 既存タイル木の再エンコード（Terrain-RGB / Terrarium → 正式エンコード、形式変換）
 - `tilejson`: 既存タイル木から TileJSON を生成する（範囲・ズームは走査して実測）

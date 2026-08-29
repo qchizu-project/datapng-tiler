@@ -510,3 +510,45 @@ def test_パレット型で数値型専用の無効値オプションを拒む(t
             str(legend),
             "--no-alpha",
         )
+
+
+def test_dataRange_を生成タイルから実測できる(tmp_path, ramp_raster, capsys):
+    """申告ではなく実際に配信するタイルから取るので、宣言と中身が食い違わない。"""
+    out = tmp_path / "tiles"
+    assert (
+        run(
+            "tile",
+            str(ramp_raster),
+            "-o",
+            str(out),
+            "--factor",
+            "0.001",
+            "--unit",
+            "m",
+            "--tile-size",
+            "64",
+            "-z",
+            str(ZOOM),
+            "--min-zoom",
+            str(ZOOM),
+            "--auto-data-range",
+            "--no-viewer",
+        )
+        == 0
+    )
+    doc = json.loads((out / "tiles.json").read_text(encoding="utf-8"))
+    measured = doc["datapng"]["dataRange"]
+    assert measured["min"] < measured["max"]
+
+    # 宣言した範囲に、実タイルの復号値がすべて収まっている
+    from datapng_tiler.codec import NumericalEncoding
+    from datapng_tiler.imageio import load_tile
+
+    enc = NumericalEncoding(factor=doc["datapng"]["factor"])
+    for tile in (out / str(ZOOM)).rglob("*.webp"):
+        rgb, alpha = load_tile(tile)
+        values = enc.decode(rgb)
+        good = values if alpha is None else values[alpha > 0]
+        if good.size:
+            assert good.min() >= measured["min"] - 1e-9
+            assert good.max() <= measured["max"] + 1e-9
