@@ -16,7 +16,7 @@ Use it to serve **continuous values** (elevation, depth, temperature) or **categ
 | Storage | value quantized to a signed 24-bit integer, packed into RGB | legend colors, byte for byte |
 | Typical use | elevation, depth, temperature | land use, hazard classes |
 
-Tiles are **WebP (lossless) by default**; PNG is also available. Both are lossless, so values are never degraded.
+Tiles are **WebP (lossless) by default**; PNG is also available. Both are lossless, so values are never degraded. The format is carried by the tile URL extension in the TileJSON — there is no dedicated field (spec §2.2).
 
 ## Install
 

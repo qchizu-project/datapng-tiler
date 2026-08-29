@@ -30,7 +30,6 @@ BASE_KWARGS = {
     "minzoom": 0,
     "maxzoom": 14,
     "tile_size": 512,
-    "fmt": "webp",
 }
 
 
@@ -46,7 +45,8 @@ def test_必須フィールドが揃う():
     assert doc["tilejson"] == "3.0.0"
     assert doc["tiles"] == ["https://example.org/{z}/{x}/{y}.webp"]
     assert doc["tileSize"] == 512  # 仕様 §2.1 REQUIRED
-    assert doc["format"] == "webp"  # 仕様 §2.2
+    # 形式はタイル URL の拡張子が担うので、専用フィールドは出さない（仕様 §2.2）
+    assert "format" not in doc
     assert doc["bounds"] == [139.0, 35.0, 140.0, 36.0]
     assert doc["center"] == [139.5, 35.5, 0]
     assert doc["datapng"]["type"] == "numerical"
@@ -122,7 +122,6 @@ def test_パレット型の_TileJSON_も検証を通る():
         (lambda d: d.update(tilejson="2.2.0"), "tilejson"),
         (lambda d: d.update(tiles=["https://example.org/tile.webp"]), "tiles[0]"),
         (lambda d: d.pop("tileSize"), "tileSize"),
-        (lambda d: d.update(format="jpeg"), "format"),
         (lambda d: d.update(minzoom=20), "minzoom"),
         (lambda d: d.update(bounds=[140.0, 35.0, 139.0, 36.0]), "bounds"),
         (lambda d: d.pop("datapng"), "datapng"),
@@ -183,15 +182,37 @@ def test_ズーム宣言の食い違いを検出する(tmp_path, ramp_raster):
     assert any(p.where == "maxzoom" for p in validate_tiles(doc, out))
 
 
-def test_形式宣言の食い違いを検出する(tmp_path, ramp_raster):
+def test_タイルURLの拡張子と中身の食い違いを検出する(tmp_path, ramp_raster):
+    """.webp というパスで PNG を配っている、という取り違えを見つける。"""
+    from PIL import Image
+
+    from datapng_tiler.fileio import tile_path
+
     out = tmp_path / "tiles"
-    mode = make_mode(fmt=TileFormat("png"))
+    mode = make_mode(fmt=TileFormat("webp"))
     tile_raster(ramp_raster, out, mode, max_zoom=ZOOM, min_zoom=ZOOM)
     doc = from_tree(out, mode)
-    doc["format"] = "webp"
-    # 実体は PNG なので、拡張子で辿れても中身の判定で食い違う
-    problems = validate_tiles(doc, out)
-    assert problems, "PNG のタイルを webp と宣言したら検出されるべき"
+    assert validate_tiles(doc, out) == []
+
+    # 拡張子は .webp のまま、中身だけ PNG に差し替える
+    victim = tile_path(out, ZOOM, TX, TY, ".webp")
+    with Image.open(victim) as image:
+        rgb = image.convert("RGB")
+    rgb.save(victim, "PNG")
+
+    problems = validate_tiles(doc, out, sample=0)
+    assert any("実体は png" in p.message for p in problems), problems
+
+
+def test_タイルURLから拡張子を取り出す():
+    from datapng_tiler.tilejson import extension_from_tiles_url
+
+    assert extension_from_tiles_url("https://example.org/{z}/{x}/{y}.webp") == ".webp"
+    assert extension_from_tiles_url("./{z}/{x}/{y}.png") == ".png"
+    assert extension_from_tiles_url("https://example.org/{z}/{x}/{y}.WEBP") == ".webp"
+    assert extension_from_tiles_url("https://example.org/{z}/{x}/{y}.png?v=2") == ".png"
+    # 拡張子を持たない配信（content negotiation）は None
+    assert extension_from_tiles_url("https://example.org/tiles/{z}/{x}/{y}") is None
 
 
 def test_アルファ付きタイルへの_invalidColor_宣言を検出する(tmp_path, holes_raster):
@@ -258,7 +279,7 @@ def test_復号結果が原典と一致することを確かめられる(tmp_pat
     # 配信物（TileJSON + タイル）だけを見て復号する
     factor = doc["datapng"]["factor"]
     offset = doc["datapng"].get("offset", 0.0)
-    rgb, _ = load_tile(tile_path(out, ZOOM, TX, TY, f".{doc['format']}"))
+    rgb, _ = load_tile(tile_path(out, ZOOM, TX, TY, ".webp"))
     r = rgb[..., 0].astype(np.int64)
     r = np.where(r < 128, r, r - 256)
     raw = r * 65536 + rgb[..., 1].astype(np.int64) * 256 + rgb[..., 2].astype(np.int64)

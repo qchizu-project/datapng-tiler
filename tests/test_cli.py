@@ -78,7 +78,7 @@ def test_数値型の一式が生成され検証を通る(tmp_path, ramp_raster)
     doc = json.loads(tilejson.read_text(encoding="utf-8"))
     assert doc["name"] == "標高テスト"
     assert doc["tileSize"] == 64
-    assert doc["format"] == "webp"
+    assert "format" not in doc  # 形式はタイル URL の拡張子が担う（仕様 §2.2）
     assert doc["datapng"]["unit"] == "m"
     assert "T.P." in doc["description"]
 
@@ -106,7 +106,6 @@ def test_PNG_出力もできる(tmp_path, ramp_raster):
     )
     assert (out / str(ZOOM) / str(TX) / f"{TY}.png").exists()
     doc = json.loads((out / "tiles.json").read_text(encoding="utf-8"))
-    assert doc["format"] == "png"
     assert doc["tiles"] == ["./{z}/{x}/{y}.png"]
 
 

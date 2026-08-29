@@ -26,6 +26,7 @@ from jsonschema import Draft202012Validator
 from datapng_tiler import SPEC_VERSION
 from datapng_tiler.engine import scan_tree
 from datapng_tiler.imageio import FORMATS, detect_format, load_tile
+from datapng_tiler.tilejson import extension_from_tiles_url
 
 DEFAULT_SAMPLE_SIZE = 50
 
@@ -69,10 +70,6 @@ def validate_document(doc: dict[str, Any]) -> list[Problem]:
         problems.append(
             Problem("tileSize", f"正の整数が必要です（仕様 §2.1 REQUIRED）: {tile_size!r}")
         )
-
-    fmt = doc.get("format")
-    if fmt is not None and fmt not in FORMATS:
-        problems.append(Problem("format", f"{' / '.join(FORMATS)} のいずれか: {fmt!r}"))
 
     minzoom, maxzoom = doc.get("minzoom"), doc.get("maxzoom")
     if isinstance(minzoom, int) and isinstance(maxzoom, int) and minzoom > maxzoom:
@@ -158,8 +155,11 @@ def validate_tiles(
     root = Path(root)
     problems: list[Problem] = []
 
-    declared_format = doc.get("format", "webp")
-    extension = f".{declared_format}" if declared_format in FORMATS else None
+    # 形式はタイル URL の拡張子が担う（仕様 §2.2）。拡張子が無い URL なら形式は問わない
+    tiles_url = doc.get("tiles") or [""]
+    extension = extension_from_tiles_url(tiles_url[0]) if isinstance(tiles_url[0], str) else None
+    expected_format = extension[1:] if extension and extension[1:] in FORMATS else None
+
     summary = scan_tree(root, extension)
     if summary is None:
         problems.append(Problem(str(root), "タイルが 1 枚もありません"))
@@ -190,7 +190,7 @@ def validate_tiles(
         tiles.sort()
 
     datapng = doc.get("datapng") or {}
-    problems.extend(_check_tile_contents(tiles, datapng, declared_format, doc.get("tileSize")))
+    problems.extend(_check_tile_contents(tiles, datapng, expected_format, doc.get("tileSize")))
     return problems
 
 
@@ -205,7 +205,7 @@ def _list_tiles(root: Path, extension: str) -> list[Path]:
 def _check_tile_contents(
     tiles: list[Path],
     datapng: dict[str, Any],
-    declared_format: str,
+    expected_format: str | None,
     tile_size: Any,
 ) -> list[Problem]:
     problems: list[Problem] = []
@@ -222,9 +222,15 @@ def _check_tile_contents(
     for path in tiles:
         where = str(path)
         actual_format = detect_format(path)
-        if actual_format is not None and actual_format != declared_format:
+        if actual_format is None:
+            problems.append(Problem(where, "WebP でも PNG でもありません（仕様 §2.2）"))
+        elif expected_format is not None and actual_format != expected_format:
+            # タイル URL の拡張子と中身が食い違うと、キャッシュや CDN の設定を誤らせる
             problems.append(
-                Problem(where, f"format 宣言 {declared_format!r} に対し実体は {actual_format!r}")
+                Problem(
+                    where,
+                    f"タイル URL の拡張子は .{expected_format} ですが実体は {actual_format} です",
+                )
             )
 
         rgb, alpha = load_tile(path)

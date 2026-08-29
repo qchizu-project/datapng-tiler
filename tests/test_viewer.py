@@ -16,7 +16,6 @@ TILEJSON = build_tilejson(
     minzoom=8,
     maxzoom=12,
     tile_size=512,
-    fmt="webp",
     datapng=make_numerical_mode(tile_size=512, unit="m").datapng(),
     name="標高",
 )
@@ -88,7 +87,6 @@ def test_パレット型では凡例を描く():
         minzoom=8,
         maxzoom=12,
         tile_size=512,
-        fmt="webp",
         datapng=PaletteMode(tile_size=512, legend=legend).datapng(),
     )
     html = build_viewer_html(doc)
