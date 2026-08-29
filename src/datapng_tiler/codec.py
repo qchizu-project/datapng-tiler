@@ -79,16 +79,19 @@ def _quantize(
     丸めは `np.rint`（最近接・半数は偶数側）。系統的な偏りを持たないため、オーバービューで
     カスケード平均しても平均値がずれない。
 
+    `scaled` はその場で書き換える（呼び出し側が作った一時配列である前提）。
+
     Returns:
         (raw 値 int64, 更新後の有効マスク)
     """
-    # np.rint(..., where=) はマスク付き演算のぶん遅く、無効画素の値は後で 0 に潰すので
-    # 全画素まとめて丸める（無効画素の scaled は呼び出し側が有限値に均してある）。
-    raw = np.rint(scaled).astype(np.int64)
+    # 判定は**整数へ落とす前**に浮動小数のまま行う。範囲外の巨大な値を int64 へ変換した
+    # 結果は未定義なので、変換後に大小を見ると clamp の向きすら当てにならない
+    # （例: +1e300 が INT64_MIN になり、上限ではなく下限へ寄せられる）。
+    # np.rint(..., where=) はマスク付き演算のぶん遅いので、全画素まとめて丸める。
+    np.rint(scaled, out=scaled)
 
-    below = raw < lo
-    np.logical_or(below, raw > hi, out=below)
-    out_of_range = np.logical_and(below, valid, out=below)
+    out_of_range = (scaled < lo) | (scaled > hi)
+    np.logical_and(out_of_range, valid, out=out_of_range)
     if out_of_range.any():
         if on_overflow == "error":
             bad = values[out_of_range]
@@ -100,12 +103,13 @@ def _quantize(
                 f" --on-overflow clamp / nodata を指定してください。"
             )
         if on_overflow == "clamp":
-            np.clip(raw, lo, hi, out=raw)
+            np.clip(scaled, lo, hi, out=scaled)
         else:  # "nodata"
             valid = valid & ~out_of_range
 
-    raw[~valid] = 0
-    return raw, valid
+    # 無効画素も整数化の前に均しておく（ここまでで有効画素は必ず [lo, hi] に収まる）
+    scaled[~valid] = 0.0
+    return scaled.astype(np.int64), valid
 
 
 @dataclass(frozen=True)

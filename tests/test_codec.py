@@ -277,3 +277,21 @@ def test_無限大は無効画素として扱われる(bad):
     rgb, valid = enc.encode(np.array([[1.0, bad]]))
     assert valid.tolist() == [[True, False]]
     assert rgb[0, 1].tolist() == [0, 0, 0]
+
+
+@pytest.mark.parametrize("huge", [1e300, -1e300])
+def test_極端に大きい値でもクランプの向きが正しい(huge):
+    """整数へ落としてから大小を見ると、桁あふれで clamp が逆向きになりうる。"""
+    enc = NumericalEncoding(factor=1.0, on_overflow="clamp")
+    rgb, valid = enc.encode(np.array([[huge]]))
+    assert valid.all()
+    expected = RAW_MAX if huge > 0 else RAW_MIN
+    assert spec_decode_datapng(rgb)[0, 0] == float(expected)
+
+
+def test_極端に大きい値を無効値にできる():
+    enc = NumericalEncoding(factor=1.0, on_overflow="nodata")
+    rgb, valid = enc.encode(np.array([[1e300, 3.0]]))
+    assert valid.tolist() == [[False, True]]
+    assert rgb[0, 0].tolist() == [0, 0, 0]
+    assert spec_decode_datapng(rgb)[0, 1] == 3.0
