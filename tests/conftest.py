@@ -124,3 +124,37 @@ def ramp_value() -> Callable[..., Any]:
 @pytest.fixture
 def origin_shift() -> float:
     return ORIGIN_SHIFT
+
+
+@pytest.fixture
+def ramp_raster(tmp_path, mercator_ramp) -> Path:
+    """タイル (ZOOM, TX, TY) を余裕をもって覆う 1 次関数ラスタ。"""
+    from tests.helpers import MARGIN, TILE_SIZE, grid_origin
+
+    x0, y0, res = grid_origin(TILE_SIZE, margin=MARGIN)
+    return mercator_ramp(
+        tmp_path / "ramp.tif",
+        x0=x0,
+        y0=y0,
+        pixel_size=res,
+        width=TILE_SIZE + 2 * MARGIN,
+        height=TILE_SIZE + 2 * MARGIN,
+    )
+
+
+@pytest.fixture
+def holes_raster(tmp_path, mercator_ramp) -> Path:
+    """タイル (ZOOM, TX, TY) ちょうどを覆い、左半分が nodata のラスタ。"""
+    from tests.helpers import TILE_SIZE, grid_origin
+
+    x0, y0, res = grid_origin(TILE_SIZE)
+    return mercator_ramp(
+        tmp_path / "holes.tif",
+        x0=x0,
+        y0=y0,
+        pixel_size=res,
+        width=TILE_SIZE,
+        height=TILE_SIZE,
+        nodata=-9999.0,
+        nodata_cols=slice(0, TILE_SIZE // 2),
+    )

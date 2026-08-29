@@ -8,90 +8,27 @@ from __future__ import annotations
 
 import numpy as np
 import pytest
-import rasterio
-from rasterio.transform import from_origin
 
 from datapng_tiler.engine import tile_raster
 from datapng_tiler.fileio import tile_path
-from datapng_tiler.geo import ORIGIN_SHIFT, WEB_MERCATOR, tile_resolution
 from datapng_tiler.imageio import TileFormat, load_tile
 from datapng_tiler.legend import Legend
-from datapng_tiler.modes import PaletteMode
 from datapng_tiler.modes.palette import TRANSPARENT_INDEX, UnknownColorError, downsample_majority
-
-TILE_SIZE = 32
-ZOOM = 8
-TX, TY = 227, 100
-
-LEGEND = Legend.from_dict(
-    {
-        "title": "浸水深",
-        "items": [
-            {"value": 1, "r": 245, "g": 245, "b": 50, "title": "0.5m未満"},
-            {"value": 2, "r": 255, "g": 216, "b": 0, "title": "0.5〜3.0m"},
-            {"value": 3, "r": 255, "g": 40, "b": 0, "title": "5.0〜10.0m"},
-        ],
-    }
+from tests.helpers import (
+    LEGEND,
+    TX,
+    TY,
+    ZOOM,
+    checker_classes,
+    write_class_raster,
+    write_rgb_raster,
 )
-
-
-def _grid_origin():
-    """タイル (ZOOM, TX, TY) の格子に整列した原点と画素サイズ。"""
-    res = tile_resolution(ZOOM, TILE_SIZE)
-    x0 = -ORIGIN_SHIFT + TX * TILE_SIZE * res - 0.5 * res
-    y0 = ORIGIN_SHIFT - TY * TILE_SIZE * res + 0.5 * res
-    return x0, y0, res
-
-
-def write_class_raster(path, classes: np.ndarray, nodata: float | None = 0):
-    x0, y0, res = _grid_origin()
-    with rasterio.open(
-        path,
-        "w",
-        driver="GTiff",
-        height=classes.shape[0],
-        width=classes.shape[1],
-        count=1,
-        dtype="int16",
-        crs=WEB_MERCATOR,
-        transform=from_origin(x0, y0, res, res),
-        nodata=nodata,
-    ) as dst:
-        dst.write(classes.astype(np.int16), 1)
-    return path
-
-
-def write_rgb_raster(path, rgb: np.ndarray):
-    x0, y0, res = _grid_origin()
-    with rasterio.open(
-        path,
-        "w",
-        driver="GTiff",
-        height=rgb.shape[0],
-        width=rgb.shape[1],
-        count=3,
-        dtype="uint8",
-        crs=WEB_MERCATOR,
-        transform=from_origin(x0, y0, res, res),
-    ) as dst:
-        dst.write(rgb.transpose(2, 0, 1))
-    return path
-
-
-def make_mode(**kwargs) -> PaletteMode:
-    defaults = {"tile_size": TILE_SIZE, "legend": LEGEND, "fmt": TileFormat("webp")}
-    return PaletteMode(**{**defaults, **kwargs})
-
-
-def checker_classes() -> np.ndarray:
-    """1/2/3 のクラス値と、nodata(0) を混ぜた市松模様。"""
-    classes = np.zeros((TILE_SIZE, TILE_SIZE), dtype=np.int16)
-    classes[0::2, 0::2] = 1
-    classes[0::2, 1::2] = 2
-    classes[1::2, 0::2] = 3
-    # 1::2, 1::2 は 0（nodata）のまま
-    return classes
-
+from tests.helpers import (
+    PALETTE_TILE_SIZE as TILE_SIZE,
+)
+from tests.helpers import (
+    make_palette_mode as make_mode,
+)
 
 # --- 色の保存 -----------------------------------------------------------------------
 
