@@ -17,7 +17,7 @@ jobs:
   lint:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - uses: astral-sh/setup-uv@v7
       - name: ruff check
         run: uv run --locked ruff check .
@@ -32,7 +32,7 @@ jobs:
         python-version: ["3.12", "3.13"]
     runs-on: ${{ matrix.os }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - uses: astral-sh/setup-uv@v7
         with:
           python-version: ${{ matrix.python-version }}
@@ -44,7 +44,7 @@ jobs:
     # （仕様が更新されたのに実装側のスキーマが古いまま、を防ぐ）。
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - uses: astral-sh/setup-uv@v7
       - name: 仕様リポジトリのスキーマと突合
         run: uv run --locked python scripts/check_schema_sync.py
