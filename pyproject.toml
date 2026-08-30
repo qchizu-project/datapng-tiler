@@ -1,7 +1,7 @@
 [project]
 name = "datapng-tiler"
 dynamic = ["version"]
-description = "Generate data tiles (numerical / palette) and TileJSON conforming to the TileJSON DataPNG Extension"
+description = "Generate data PNG tiles (numerical PNG / palette PNG) and TileJSON conforming to the TileJSON DataPNG Extension"
 readme = "README.md"
 requires-python = ">=3.12"
 license = "MIT"

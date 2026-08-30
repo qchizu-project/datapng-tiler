@@ -1,6 +1,6 @@
 # datapng-tiler
 
-A CLI and Python library that turns raster data into **data tiles** (numerical and palette) plus a **TileJSON** describing them.
+A CLI and Python library that turns raster data into [data PNG](https://gsj-seamless.jp/labs/datapng/) tiles (**numerical PNG** and **palette PNG**) plus a **TileJSON** describing them.
 
 Conforms to the [TileJSON DataPNG Extension](https://github.com/qchizu-project/tilejson-datapng-extension) v0.7.0.
 
@@ -10,7 +10,7 @@ Conforms to the [TileJSON DataPNG Extension](https://github.com/qchizu-project/t
 
 Use it to serve **continuous values** (elevation, depth, temperature) or **categories** (land use, flood-depth classes) as map tiles. It writes tiles that carry the values losslessly in RGB, together with the TileJSON metadata a client needs to decode them — factor, unit, invalid value, legend.
 
-| | numerical | palette |
+| | numerical PNG | palette PNG |
 |---|---|---|
 | Input | continuous-value raster | class-value raster, or RGB raster + legend |
 | Storage | value quantized to a signed 24-bit integer, packed into RGB | legend colors, byte for byte |

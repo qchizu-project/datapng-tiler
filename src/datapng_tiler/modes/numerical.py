@@ -1,4 +1,4 @@
-"""数値型タイル（仕様 §3.2）。
+"""数値PNGタイル（仕様 §3.2）。
 
 任意の連続値ラスタ（標高・水深・気温・濃度など分野を問わない）を、`factor` 刻みの整数へ
 量子化して RGB に格納する。無効値は既定でアルファ 0 で表す（仕様 §3.2.2）。
@@ -122,7 +122,7 @@ def scan_value_range(root: Path, mode: NumericalMode, zoom: int) -> tuple[float,
 
 @dataclass(frozen=True, kw_only=True)
 class NumericalMode(TileMode):
-    """数値型タイルの生成。
+    """数値PNGタイルの生成。
 
     Args:
         encoding: 符号化方式（`factor` / `offset` / `specialEncoding`）

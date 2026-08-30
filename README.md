@@ -1,6 +1,6 @@
 # datapng-tiler
 
-ラスタデータから **データPNG タイル**（数値型・パレット型）と **TileJSON** を生成する CLI / Python ライブラリです。
+ラスタデータから [データPNG](https://gsj-seamless.jp/labs/datapng/) タイル（**数値PNG**・**パレットPNG**）と **TileJSON** を生成する CLI / Python ライブラリです。
 
 [TileJSON DataPNG Extension](https://github.com/qchizu-project/tilejson-datapng-extension) v0.7.0 に準拠します。
 
@@ -10,7 +10,7 @@
 
 標高・水深・気温のような**連続値**や、土地利用・浸水深階級のような**区分**を、地図タイルとして配信するときに使います。値を RGB に可逆に埋め込んだタイルと、それを復号するために必要なメタデータ（係数・単位・無効値・凡例など）を記述した TileJSON を、まとめて生成します。
 
-| | 数値型（numerical） | パレット型（palette） |
+| | 数値PNG（numerical） | パレットPNG（palette） |
 |---|---|---|
 | 入力 | 連続値のラスタ | クラス値ラスタ、または RGB ラスタ + 凡例定義 |
 | 格納 | 値を 24 ビット符号付き整数に量子化して RGB へ | 凡例の色をそのまま |
@@ -30,7 +30,7 @@ Python 3.12 以上が必要です。GDAL は rasterio の wheel に同梱され�
 
 ## 使い方
 
-### 数値型タイル（標高など）
+### 数値PNGタイル（標高など）
 
 ```sh
 datapng-tiler tile dem.tif -o tiles/ --factor 0.01 --unit m \
@@ -48,7 +48,7 @@ tiles/
 
 `--factor 0.01` は「0.01 単位で量子化する」という意味です。標高なら 1cm 刻み。値が 24 ビット整数（±8,388,607）に収まらない場合は**エラーで止まります**——黙って折り返した誤った値を出力しないためです。エラーメッセージが適切な `--factor` を提示します。
 
-### パレット型タイル（区分など）
+### パレットPNGタイル（区分など）
 
 凡例定義（YAML または JSON）を用意します。
 

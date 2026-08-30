@@ -1,4 +1,4 @@
-"""パレット型タイル（仕様 §3.3）。
+"""パレットPNGタイル（仕様 §3.3）。
 
 区分（土地利用・浸水深の階級など）を色で表すタイル。クライアントは**RGB の完全一致**で
 凡例を引くので、色は 1 バイトも変えてはならない。したがって:
@@ -89,7 +89,7 @@ def downsample_majority(indices: np.ndarray) -> np.ndarray:
 
 @dataclass(frozen=True, kw_only=True)
 class PaletteMode(TileMode):
-    """パレット型タイルの生成。
+    """パレットPNGタイルの生成。
 
     Args:
         legend: 凡例（色と意味の対応。TileJSON にも同じものを載せる）
@@ -299,7 +299,7 @@ class PaletteMode(TileMode):
     # --- TileJSON -------------------------------------------------------------------
 
     def datapng(self) -> dict[str, Any]:
-        # 仕様 §3・§7: パレット型では factor / offset / invalidColor を出さない。
+        # 仕様 §3・§7: パレットPNGでは factor / offset / invalidColor を出さない。
         # 無効値は透明のみで表す。
         return {
             "type": "palette",
