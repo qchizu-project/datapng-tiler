@@ -5,6 +5,13 @@
 
 ## [Unreleased]
 
+## [0.1.2] - 2026-08-30
+
+### Fixed
+
+- README の相対リンク（English README・CONTRIBUTING.md・BENCHMARKS.md・LICENSE・NOTICE）が
+  PyPI のプロジェクトページ上で開けなかった問題を修正。GitHub の絶対 URL に変更した
+
 ## [0.1.1] - 2026-08-30
 
 ### Changed
@@ -40,6 +47,7 @@ v0.7.0 に準拠します。
 - `inspect`: タイル 1 枚を復号して統計・特定画素の値を表示する
 - プレビュー HTML（カーソル位置の値を仕様どおりに復号して表示。背景地図は既定で無し）
 
-[Unreleased]: https://github.com/qchizu-project/datapng-tiler/compare/v0.1.1...HEAD
+[Unreleased]: https://github.com/qchizu-project/datapng-tiler/compare/v0.1.2...HEAD
+[0.1.2]: https://github.com/qchizu-project/datapng-tiler/compare/v0.1.1...v0.1.2
 [0.1.1]: https://github.com/qchizu-project/datapng-tiler/compare/v0.1.0...v0.1.1
 [0.1.0]: https://github.com/qchizu-project/datapng-tiler/releases/tag/v0.1.0
