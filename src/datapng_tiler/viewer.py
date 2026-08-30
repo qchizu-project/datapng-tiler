@@ -19,6 +19,7 @@ canvas に描いて画素を取るため、**タイルが HTML と同一オリ�
 from __future__ import annotations
 
 import json
+import math
 from pathlib import Path
 from typing import Any
 
@@ -218,7 +219,7 @@ map.on('mousemove', (event) => {
   const value = decodeNumerical(px.r, px.g, px.b);
   const unit = dp.unit ? ` ${escapeHtml(dp.unit)}` : '';
   readout._div.innerHTML =
-    `<b>${value.toFixed(3)}${unit}</b><br>` +
+    `<b>${value.toFixed(CONFIG.valueDecimals)}${unit}</b><br>` +
     `<span class="hint">RGB (${px.r}, ${px.g}, ${px.b})</span>`;
 });
 
@@ -285,6 +286,27 @@ _STYLE = """
 """
 
 
+def _value_decimals(datapng: dict[str, Any]) -> int:
+    """数値PNGの量子化ステップに見合った表示桁数を返す。
+
+    ステップの対数から桁数を出す（例: factor=0.01 → 2 桁）。ステップが不正な
+    場合は既定の 3 桁を返す。
+    """
+    special = datapng.get("specialEncoding")
+    if special == "mapbox":
+        step = 0.1
+    elif special == "terrarium":
+        step = 1 / 256
+    else:
+        factor = datapng.get("factor")
+        step = abs(factor) if factor else 1
+
+    if not math.isfinite(step) or step <= 0:
+        return 3
+    decimals = math.ceil(-math.log10(step) - 1e-9)
+    return min(max(decimals, 0), 10)
+
+
 def build_viewer_html(
     tilejson: dict[str, Any],
     *,
@@ -316,7 +338,12 @@ def build_viewer_html(
     else:
         base = None
 
-    config = {"tilejson": tilejson, "basemap": base, "overzoom": _OVERZOOM}
+    config = {
+        "tilejson": tilejson,
+        "basemap": base,
+        "overzoom": _OVERZOOM,
+        "valueDecimals": _value_decimals(tilejson.get("datapng") or {}),
+    }
     # インライン <script> 内に埋め込むため `</` を潰す（`</script>` による早期終了を防ぐ）
     config_json = json.dumps(config, ensure_ascii=False).replace("</", "<\\/")
     title = json.dumps(tilejson.get("name") or "datapng-tiler", ensure_ascii=False).replace(
