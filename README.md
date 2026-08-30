@@ -4,7 +4,7 @@
 
 [TileJSON DataPNG Extension](https://github.com/qchizu-project/tilejson-datapng-extension) v0.7.0 に準拠します。
 
-> **Language**: [English README](./README.en.md)
+> **Language**: [English README](https://github.com/qchizu-project/datapng-tiler/blob/main/README.en.md)
 
 ## これは何か
 
@@ -168,10 +168,10 @@ write_tilejson(from_tree("tiles/", mode, name="標高"), "tiles/tiles.json")
 
 `datapng_tiler.codec` は純粋関数だけなので、符号化・復号だけを使うこともできます。
 
-開発・貢献については [CONTRIBUTING.md](./CONTRIBUTING.md) を参照してください。性能の実測は [BENCHMARKS.md](./BENCHMARKS.md) を参照してください。
+開発・貢献については [CONTRIBUTING.md](https://github.com/qchizu-project/datapng-tiler/blob/main/CONTRIBUTING.md) を参照してください。性能の実測は [BENCHMARKS.md](https://github.com/qchizu-project/datapng-tiler/blob/main/BENCHMARKS.md) を参照してください。
 
 ## ライセンス
 
-MIT License（[LICENSE](./LICENSE)）。準拠仕様と依存ライブラリの帰属は [NOTICE](./NOTICE) を参照してください。
+MIT License（[LICENSE](https://github.com/qchizu-project/datapng-tiler/blob/main/LICENSE)）。準拠仕様と依存ライブラリの帰属は [NOTICE](https://github.com/qchizu-project/datapng-tiler/blob/main/NOTICE) を参照してください。
 
 準拠する仕様 [TileJSON DataPNG Extension](https://github.com/qchizu-project/tilejson-datapng-extension) は CC0 1.0 で公開されています。

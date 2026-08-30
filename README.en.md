@@ -4,7 +4,7 @@ A CLI and Python library that turns raster data into [data PNG](https://gsj-seam
 
 Conforms to the [TileJSON DataPNG Extension](https://github.com/qchizu-project/tilejson-datapng-extension) v0.7.0.
 
-> **言語**: [日本語版 README](./README.md)（詳しい説明はこちら）
+> **言語**: [日本語版 README](https://github.com/qchizu-project/datapng-tiler/blob/main/README.md)（詳しい説明はこちら）
 
 ## What it does
 
@@ -63,8 +63,8 @@ Per specification §3.2.2, `invalidColor` **cannot designate a fully transparent
 
 **No basemap is loaded by default.** Opt in with `--basemap gsi|osm`.
 
-See [CONTRIBUTING.md](./CONTRIBUTING.md) for development. Performance measurements are in [BENCHMARKS.md](./BENCHMARKS.md).
+See [CONTRIBUTING.md](https://github.com/qchizu-project/datapng-tiler/blob/main/CONTRIBUTING.md) for development. Performance measurements are in [BENCHMARKS.md](https://github.com/qchizu-project/datapng-tiler/blob/main/BENCHMARKS.md).
 
 ## License
 
-MIT — see [LICENSE](./LICENSE) and [NOTICE](./NOTICE). The specification it implements is published under CC0 1.0.
+MIT — see [LICENSE](https://github.com/qchizu-project/datapng-tiler/blob/main/LICENSE) and [NOTICE](https://github.com/qchizu-project/datapng-tiler/blob/main/NOTICE). The specification it implements is published under CC0 1.0.
