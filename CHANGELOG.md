@@ -5,6 +5,8 @@
 
 ## [Unreleased]
 
+## [0.1.1] - 2026-08-30
+
 ### Changed
 
 - 用語を[データPNG](https://gsj-seamless.jp/labs/datapng/)仕様に合わせ「数値型・パレット型」から
@@ -38,5 +40,6 @@ v0.7.0 に準拠します。
 - `inspect`: タイル 1 枚を復号して統計・特定画素の値を表示する
 - プレビュー HTML（カーソル位置の値を仕様どおりに復号して表示。背景地図は既定で無し）
 
-[Unreleased]: https://github.com/qchizu-project/datapng-tiler/compare/v0.1.0...HEAD
+[Unreleased]: https://github.com/qchizu-project/datapng-tiler/compare/v0.1.1...HEAD
+[0.1.1]: https://github.com/qchizu-project/datapng-tiler/compare/v0.1.0...v0.1.1
 [0.1.0]: https://github.com/qchizu-project/datapng-tiler/releases/tag/v0.1.0
