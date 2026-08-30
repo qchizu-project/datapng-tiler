@@ -114,7 +114,7 @@ def _quantize(
 
 @dataclass(frozen=True)
 class NumericalEncoding:
-    """数値型タイルの符号化方式（仕様 §3.2 / §3.2.1）。
+    """数値PNGタイルの符号化方式（仕様 §3.2 / §3.2.1）。
 
     プロセス間で受け渡すため、pickle 可能な不変の値オブジェクトにしてある。
 

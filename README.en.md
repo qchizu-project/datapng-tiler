@@ -1,6 +1,6 @@
 # datapng-tiler
 
-A CLI and Python library that turns raster data into **data tiles** (numerical and palette) plus a **TileJSON** describing them.
+A CLI and Python library that turns raster data into [data PNG](https://gsj-seamless.jp/labs/datapng/) tiles (**numerical PNG** and **palette PNG**) plus a **TileJSON** describing them.
 
 Conforms to the [TileJSON DataPNG Extension](https://github.com/qchizu-project/tilejson-datapng-extension) v0.7.0.
 
@@ -10,7 +10,7 @@ Conforms to the [TileJSON DataPNG Extension](https://github.com/qchizu-project/t
 
 Use it to serve **continuous values** (elevation, depth, temperature) or **categories** (land use, flood-depth classes) as map tiles. It writes tiles that carry the values losslessly in RGB, together with the TileJSON metadata a client needs to decode them — factor, unit, invalid value, legend.
 
-| | numerical | palette |
+| | numerical PNG | palette PNG |
 |---|---|---|
 | Input | continuous-value raster | class-value raster, or RGB raster + legend |
 | Storage | value quantized to a signed 24-bit integer, packed into RGB | legend colors, byte for byte |
@@ -46,15 +46,6 @@ datapng-tiler validate tiles/tiles.json --tiles tiles/
 
 `tile` writes the tile tree, `tiles.json` and a preview `index.html` that decodes and shows values under the cursor.
 
-## Correctness notes
-
-- **No threshold-based nodata detection.** Treating "values close to nodata" as invalid destroys real data when nodata is 0 or positive. Validity comes from the GDAL mask; for sources without a declared nodata, the warp's coverage mask (`add_alpha`) marks everything outside the source as invalid.
-- **Values that do not fit in 24 bits are an error**, not a silent wraparound. Use `--on-overflow clamp|nodata` to choose otherwise.
-- **The declared `support` always matches how tiles were produced.** `--support point` (default) means top-left alignment and top-left propagation into overviews; `--support block` means center alignment and integer averaging. They cannot be set independently.
-- **Reprojection uses a near-exact transformer.** GDAL's default approximate transformer has an error that varies with the output resolution, which makes the same ground point sample slightly differently at different zoom levels.
-- **Overviews are combined in the raw integer domain**, so quantization error does not accumulate across zoom levels.
-- **Output is deterministic**: the same input and settings produce byte-identical tiles regardless of `--jobs`.
-
 ## Invalid values
 
 Invalid pixels are marked either by alpha 0 or by a designated color — one or the other:
@@ -70,17 +61,9 @@ Per specification §3.2.2, `invalidColor` **cannot designate a fully transparent
 
 `index.html` sits at the root of the tile tree. Serve it (`python -m http.server -d tiles/`) and hover the map to read decoded values — this catches "it renders, but the numbers are wrong".
 
-**No basemap is loaded by default.** Defaulting to a third-party tile service would impose that service's terms on everyone who uses this tool. Opt in with `--basemap gsi|osm`.
+**No basemap is loaded by default.** Opt in with `--basemap gsi|osm`.
 
-## Development
-
-```sh
-uv sync
-uv run pytest -v
-uv run ruff check . && uv run ruff format .
-```
-
-Tests need no external data or network. Conformance is checked against a decoder transcribed literally from the specification text, not against this project's own decoder.
+See [CONTRIBUTING.md](./CONTRIBUTING.md) for development. Performance measurements are in [BENCHMARKS.md](./BENCHMARKS.md).
 
 ## License
 

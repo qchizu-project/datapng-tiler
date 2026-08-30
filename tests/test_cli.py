@@ -497,7 +497,7 @@ def test_パレット型で数値型専用の無効値オプションを拒む(t
     legend.write_text(LEGEND_YAML, encoding="utf-8")
     src = write_class_raster(tmp_path / "classes.tif", checker_classes())
 
-    with pytest.raises(SystemExit, match="数値型専用"):
+    with pytest.raises(SystemExit, match="数値PNG専用"):
         run(
             "tile",
             str(src),

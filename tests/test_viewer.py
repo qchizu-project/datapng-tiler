@@ -4,10 +4,17 @@ from __future__ import annotations
 
 import pytest
 
+from datapng_tiler.codec import NumericalEncoding
 from datapng_tiler.legend import Legend
 from datapng_tiler.modes import PaletteMode
 from datapng_tiler.tilejson import build_tilejson
-from datapng_tiler.viewer import BASEMAPS, basemap_notice, build_viewer_html, write_viewer_html
+from datapng_tiler.viewer import (
+    BASEMAPS,
+    _value_decimals,
+    basemap_notice,
+    build_viewer_html,
+    write_viewer_html,
+)
 from tests.helpers import make_numerical_mode
 
 TILEJSON = build_tilejson(
@@ -114,3 +121,37 @@ def test_凡例の説明文もエスケープする():
     # title と description の両方が escapeHtml を通っている
     assert "escapeHtml(item.title)" in html
     assert "escapeHtml(item.description)" in html
+
+
+@pytest.mark.parametrize(
+    ("datapng", "decimals"),
+    [
+        ({"factor": 0.01}, 2),
+        ({"factor": 1}, 0),
+        ({"factor": 0.5}, 1),
+        ({"factor": 10}, 0),
+        ({"factor": 0.1}, 1),
+        ({}, 0),
+        ({"specialEncoding": "mapbox"}, 1),
+        ({"specialEncoding": "terrarium"}, 3),
+    ],
+)
+def test_表示桁数は_factor_の量子化ステップから決まる(datapng, decimals):
+    assert _value_decimals(datapng) == decimals
+
+
+def test_ビューワーの値表示桁数が_factor_に合わせて埋め込まれる():
+    """factor=0.01（1cm 刻み）で小数3桁目まで出すのは無意味な桁を見せることになる。"""
+    doc = build_tilejson(
+        tiles=["./{z}/{x}/{y}.webp"],
+        bounds=(139.0, 35.0, 140.0, 36.0),
+        minzoom=8,
+        maxzoom=12,
+        tile_size=512,
+        datapng=make_numerical_mode(
+            tile_size=512, unit="m", encoding=NumericalEncoding(factor=0.01)
+        ).datapng(),
+    )
+    html = build_viewer_html(doc)
+    assert '"valueDecimals": 2' in html
+    assert "toFixed(CONFIG.valueDecimals)" in html

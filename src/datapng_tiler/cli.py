@@ -189,11 +189,11 @@ def _build_mode(args: argparse.Namespace):
     fmt = _tile_format(args)
     if args.type == "palette":
         if args.no_alpha or args.invalid_color:
-            # パレット型の無効値は透明のみ（仕様 §7: invalidColor は数値型専用）。
+            # パレットPNGの無効値は透明のみ（仕様 §7: invalidColor は数値PNG専用）。
             # 黙って無視すると、指定したつもりの出力と実物が食い違う。
             raise SystemExit(
-                "エラー: --no-alpha / --invalid-color は数値型専用です"
-                "（パレット型の無効値は透明で表します。仕様 §7）"
+                "エラー: --no-alpha / --invalid-color は数値PNG専用です"
+                "（パレットPNGの無効値は透明で表します。仕様 §7）"
             )
         legend = Legend.load(args.legend)
         return PaletteMode(
@@ -475,7 +475,7 @@ def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
         prog="datapng-tiler",
         description=(
-            "データPNG（数値型・パレット型）タイルと TileJSON を生成する。"
+            "データPNG（数値PNG・パレットPNG）タイルと TileJSON を生成する。"
             f" 準拠仕様: TileJSON DataPNG Extension {SPEC_VERSION}"
         ),
     )
@@ -511,9 +511,9 @@ def build_parser() -> argparse.ArgumentParser:
         "--resampling",
         choices=tuple(RESAMPLING_CHOICES),
         default=DEFAULT_RESAMPLING,
-        help=f"再投影カーネル（数値型のみ。既定: {DEFAULT_RESAMPLING}）",
+        help=f"再投影カーネル（数値PNGのみ。既定: {DEFAULT_RESAMPLING}）",
     )
-    tile.add_argument("--legend", help="パレット型の凡例定義（YAML / JSON）")
+    tile.add_argument("--legend", help="パレットPNGの凡例定義（YAML / JSON）")
     tile.add_argument("--legend-url", help="凡例を外部参照にする URL（仕様 §3.3.2）")
     tile.add_argument(
         "--on-unknown-color",
@@ -531,7 +531,7 @@ def build_parser() -> argparse.ArgumentParser:
     tile.add_argument(
         "--auto-data-range",
         action="store_true",
-        help="dataRange を生成タイルから実測する（--data-range より優先。数値型のみ）",
+        help="dataRange を生成タイルから実測する（--data-range より優先。数値PNGのみ）",
     )
     tile.add_argument("--precision", type=float, help="元データの有効な最小単位")
     _add_numerical_options(tile)
@@ -591,7 +591,7 @@ def build_parser() -> argparse.ArgumentParser:
     tilejson.add_argument(
         "--type", choices=("numerical", "palette"), default="numerical", help="タイル種別"
     )
-    tilejson.add_argument("--legend", help="パレット型の凡例定義（YAML / JSON）")
+    tilejson.add_argument("--legend", help="パレットPNGの凡例定義（YAML / JSON）")
     tilejson.add_argument("--legend-url", help="凡例を外部参照にする URL")
     tilejson.add_argument(
         "--support", choices=SUPPORT_CHOICES, default="point", help="画素値が代表する領域"
@@ -670,7 +670,7 @@ def main(argv: list[str] | None = None) -> int:
     )
 
     if getattr(args, "type", None) == "palette" and not getattr(args, "legend", None):
-        parser.error("--type palette には --legend が必要です（凡例はパレット型の必須情報）")
+        parser.error("--type palette には --legend が必要です（凡例はパレットPNGの必須情報）")
 
     try:
         return args.func(args)

@@ -104,11 +104,11 @@ def _check_datapng_semantics(datapng: dict[str, Any]) -> list[Problem]:
     kind = datapng.get("type")
 
     if kind == "palette":
-        # 仕様 §3・§7: パレット型に数値型のフィールドは該当しない
+        # 仕様 §3・§7: パレットPNGに数値PNGのフィールドは該当しない
         for key in ("factor", "offset", "invalidColor", "specialEncoding", "unit", "dataRange"):
             if key in datapng:
                 problems.append(
-                    Problem(f"datapng.{key}", "パレット型には該当しないフィールドです（§7）")
+                    Problem(f"datapng.{key}", "パレットPNGには該当しないフィールドです（§7）")
                 )
         legend = datapng.get("legend")
         if isinstance(legend, dict):
