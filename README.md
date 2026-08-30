@@ -110,22 +110,6 @@ datapng-tiler validate tiles/tiles.json --tiles tiles/
 datapng-tiler inspect tiles/14/14552/6451.webp --tilejson tiles/tiles.json --pixel 100 200
 ```
 
-## 正確性について
-
-このツールが特に気をつけていることを挙げます。
-
-**無効値の判定に閾値を使いません。** 「nodata に近い値を無効とみなす」実装は、nodata が 0 や正の値であるデータで有効値を消してしまいます。GDAL のマスクを正とし、nodata の宣言が無いソースではワープの被覆マスク（`add_alpha`）でソース範囲外を無効にします。
-
-**24 ビットに収まらない値を黙って通しません。** 既定でエラーにし、`--on-overflow clamp|nodata` で明示的に選べます。
-
-**`support` の宣言と生成方式が必ず一致します。** `--support point`（既定）なら左上法で再投影し、オーバービューも左上の値を運びます。`--support block` なら中心整列で、オーバービューは整数領域での平均になります。TileJSON にはそのとおりの `support` が出ます。片方だけ変えられる API にはしていません。
-
-**再投影は厳密寄りのトランスフォーマで行います。** GDAL 既定の近似トランスフォーマは近似誤差が出力解像度（＝生成ズーム）によって変わるため、同じ地点を狙っても標本位置がサブピクセルでにじみ、「ズームによって値が違う」現象を生みます。
-
-**オーバービューは raw 整数のまま合成します。** 値は raw 整数のアフィン関数なので、整数領域の平均と値領域の平均は一致し、ズームを重ねても量子化誤差が積み上がりません。
-
-**出力は決定的です。** 同じ入力・同じ設定なら、`--jobs` を変えても生成されるタイルはバイト単位で一致します。
-
 ## 無効値の表し方
 
 無効値はアルファ 0 か、指定した色のどちらか一方で表します。
@@ -167,7 +151,7 @@ datapng-tiler inspect tiles/14/14552/6451.webp --tilejson tiles/tiles.json --pix
 `index.html` はタイル木のルートに置かれ、ブラウザで開くとカーソル位置の値を表示します。画像として並べるだけでなく **TileJSON の宣言どおりに復号して見せる**ので、「絵としては出ているが値が違う」を見つけられます。
 
 - 値の読み取りにはタイルが HTML と同一オリジンにある必要があります（`python -m http.server -d tiles/` などで開いてください）。別オリジンのタイルは表示はできますが値を読めません。
-- **背景地図は既定で無しです。** 地理院タイルや OpenStreetMap を既定にすると、このツールを使うすべての人に第三者サービスの利用規約を負わせることになるためです。`--basemap gsi|osm` で明示的に選べます（選ぶと規約の所在を表示します）。
+- **背景地図は既定で無し**です。`--basemap gsi|osm` で選べます。
 
 ## ライブラリとして使う
 
@@ -184,24 +168,7 @@ write_tilejson(from_tree("tiles/", mode, name="標高"), "tiles/tiles.json")
 
 `datapng_tiler.codec` は純粋関数だけなので、符号化・復号だけを使うこともできます。
 
-## 開発
-
-```sh
-uv sync
-uv run pytest -v
-uv run ruff check . && uv run ruff format .
-```
-
-テストは外部データやネットワークに依存しません。仕様適合の検証には、**仕様書の変換式を文字どおり写した独立デコーダ**を使っています（実装同士の往復では「実装が自分の仕様に従っている」ことしか言えないため）。
-
-性能の実測は [BENCHMARKS.md](./BENCHMARKS.md) を参照してください。
-
-## リリース
-
-1. `src/datapng_tiler/__init__.py` の `__version__` と `CHANGELOG.md` を更新して main にマージ
-2. `git tag vX.Y.Z && git push origin vX.Y.Z`
-
-タグの push で GitHub Actions が PyPI（Trusted Publishing）と GitHub Release へ公開します。初回のみ PyPI 側で pending publisher の登録が必要です。
+開発・貢献については [CONTRIBUTING.md](./CONTRIBUTING.md) を参照してください。性能の実測は [BENCHMARKS.md](./BENCHMARKS.md) を参照してください。
 
 ## ライセンス
 

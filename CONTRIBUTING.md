@@ -52,6 +52,13 @@ Linux は fork、macOS と Windows は spawn と異なるため、**ワーカへ
 `docs:` / `refactor:` / `test:` / `chore:`）を使います。本文には**なぜそうしたか**を書いて
 ください——何をしたかは diff を見れば分かります。
 
+## リリース
+
+1. `src/datapng_tiler/__init__.py` の `__version__` と `CHANGELOG.md` を更新して main にマージ
+2. `git tag vX.Y.Z && git push origin vX.Y.Z`
+
+タグの push で GitHub Actions が PyPI（Trusted Publishing）と GitHub Release へ公開します。初回のみ PyPI 側で pending publisher の登録が必要です。
+
 ## ライセンス
 
 貢献いただいたコードは MIT License で配布されます。
