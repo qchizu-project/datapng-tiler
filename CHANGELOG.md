@@ -5,6 +5,18 @@
 
 ## [Unreleased]
 
+### Changed
+
+- 用語を[データPNG](https://gsj-seamless.jp/labs/datapng/)仕様に合わせ「数値型・パレット型」から
+  「数値PNG・パレットPNG」に統一
+- README を利用者向けに整理。「開発」「リリース」節と「正確性について」節を削除し、
+  開発・貢献手順は CONTRIBUTING.md へ移した
+
+### Fixed
+
+- プレビューの値表示桁数が常に小数3桁固定だった問題を修正。`factor` の量子化ステップに
+  応じた桁数（例: `factor=0.01` なら2桁）で表示する
+
 ## [0.1.0] - 2026-08-29
 
 初版。[TileJSON DataPNG Extension](https://github.com/qchizu-project/tilejson-datapng-extension)
